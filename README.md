@@ -10,6 +10,7 @@
 - [Installation](#installation)
 - [Quick example](#quick-example)
 - [License](#license)
+- [Planned updates](#planned-updates)
 - [References](#references)
 
 ## Installation
@@ -110,6 +111,21 @@ forecast = model.forecast(7, current_distribution, *transition_tensor)
 ## License
 
 `fractrics` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+
+## Planned updates
+
+- refactoring the functions in `_pending_refactor`.
+- `diagnostics.py`: adding other common metrics.
+- `_ts_components/_HMM/base.py`:
+    - implementing viterbi and backwards algorithms
+    - generalize components of the forward algorithms that apply to other hidden markov models
+- `MSM`:
+    - use pytrees or other forms of custom class to facilitate the usage of the API and store valuable information of fitted model.
+    - implement standard errors and robust standard erros of the parameters (pseudo-code commented in already)
+    - implement model selection metrics
+    - model implied moments, value at risk.
+    - Allow for creating simulations without initializing the model with a time series.
+- `level_MSM` re-implement the model using the new architecture of the package
 
 ## References
 
