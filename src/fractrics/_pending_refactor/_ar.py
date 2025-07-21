@@ -1,5 +1,5 @@
-from fractrics.helper import OLS
-from fractrics.descriptive import acf
+from ..helper import OLS
+from ..descriptive import acf
 import numpy as np
 
 class ar:

@@ -1,4 +1,4 @@
-from fractrics.helper import OLS, partition_map
+from fractrics._deprecated._pending_refactor._helper import OLS, partition_map
 import numpy as np
 import pandas as pd
 import scipy.special as sp

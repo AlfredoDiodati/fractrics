@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fractrics"
+dynamic = ["version"]
+description = 'A fractal econometrics package for python, built with JAX.'
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Alfredo Diodati", email = "diodatialfredo@gmail.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: Implementation :: CPython"
+]
+dependencies = [
+  "jax>=0.4.35",
+  "jaxopt>=0.8.4",
+  "numpy>=2.3.1",
+  "pandas>=2.3.1",
+  "scipy>=1.16.0",
+]
+
+[project.urls]
+Documentation = "https://github.com/AlfredoDiodati/fractrics#readme"
+Issues = "https://github.com/AlfredoDiodati/fractrics/issues"
+Source = "https://github.com/AlfredoDiodati/fractrics"
+
+[tool.hatch.version]
+path = "src/fractrics/__about__.py"
