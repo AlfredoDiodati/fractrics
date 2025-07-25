@@ -1,6 +1,4 @@
 # Contains abstract time series classes. 
-# Stochastic classes have an additional method containing simulation.
-
 
 import numpy as np
 import pandas as pd
@@ -8,9 +6,21 @@ import pandas as pd
 import jax.numpy as jnp
 from abc import abstractmethod, ABC
 
-class time_series(ABC):
-    """Generic time series class."""
+from typing import Dict, Tuple, Any
+from dataclasses import dataclass, field
+
+@dataclass(frozen=True)
+class ts_metadata:
+    """Structure of information of time series."""
+    data: jnp.ndarray
+    name: str
+    parameters: Dict[str, Any] = field(default_factory=dict)
+    hyperparameters: Dict[str, Any] = field(default_factory=dict)
+    optimization_info: Dict[str, Any] = field(default_factory=dict)
     
+
+class time_series(ABC):
+    """Behavior structure of time series models."""
     def __init__(self, ts: np.ndarray | jnp.ndarray | pd.Series | pd.DataFrame, name: str | None = None) -> None:
         """
         Initializes the model, data to use, hyperparameters, ...

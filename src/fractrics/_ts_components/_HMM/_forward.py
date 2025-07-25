@@ -1,6 +1,5 @@
 
 from abc import abstractmethod
-#from typing import Callable
 
 import jax.numpy as jnp
 from jax.lax import scan
@@ -50,12 +49,10 @@ class factor_transition(forward_update):
     def make_predictive_function(*transition_matrices):
         """Returns a function that computes the predictive distribution in tensor form."""
         
-        #NOTE: currently the forward algorithm breaks if given a jax tensor as input, due to the way enumerate handles the predictive update
         def make_predictive_distribution(prior:jnp.ndarray)->jnp.ndarray:
             
             dims = tuple(A.shape[0] for A in transition_matrices)
             predictive_tensor = prior.reshape(*dims)
-            
             for axis, A in enumerate(transition_matrices):
                 predictive_tensor = jnp.moveaxis(predictive_tensor, axis, -1)
                 predictive_tensor = jnp.tensordot(predictive_tensor, A, axes=([-1], [0]))

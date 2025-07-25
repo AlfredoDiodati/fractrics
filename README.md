@@ -9,9 +9,10 @@
 
 - [Installation](#installation)
 - [Quick example](#quick-example)
-- [License](#license)
+- [Project Structure](#project-structure)
 - [Planned updates](#planned-updates)
 - [References](#references)
+- [License](#license)
 
 ## Installation
 
@@ -25,7 +26,7 @@ The main tool in fractrics is the MSM class, an implementation of the univariate
 
 Such structure effectively captures the behaviour of time series with fat tails, hyperbolic correlation decay, and multifractal moments, such as the returns of many financial assets.
 
-The implementation is made in JAX, simplifying parallelization of the code. Moreover, following from [this](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5276090) paper, the memory complexity of the forward algorithm is reduced, due to the factorization of latent states.
+The implementation is made in JAX, simplifying parallelization of the code. Moreover, following from [this](https://link.springer.com/article/10.1023/A:1007425814087) paper, the memory complexity of the forward algorithm is reduced, due to the factorization of latent states.
 
 To use the model, start with an example time series. Note that the model is only defined for positive time series (as it was created to model prices of financial assets).
 
@@ -39,12 +40,12 @@ ts_test = jnp.array(np.random.normal(50, 10, 10))
 ```
 
 Then initialize the model. It requires the following hyperparameters:
- - `num_latent`: how many volatility components, integer.
+ - `n_latent`: how many volatility components, integer.
  - `marg_prob_mass`: the probability mass of the marginal distribution of the latent states, needs to sum to 1. 
 
 
 ```python
-model = MSM(ts=ts_test, num_latent=3)
+model = MSM(ts=ts_test, n_latent=3)
 ```
 
 To fit the model to the data, start with an initial guess. The `MSM.fit()` method then optimizes the parameters using `jaxopt`'s [Broyden–Fletcher–Goldfarb–Shanno algorithm](https://en.wikipedia.org/wiki/Broyden%E2%80%93Fletcher%E2%80%93Goldfarb%E2%80%93Shanno_algorithm).
@@ -67,65 +68,73 @@ initial_params = jnp.array([
     2,    #unconditional term
     3.0,    #arrival_gdistance
     0.98,   #hf_arrival
+
     #support
     1.5,    
     0.5
 ])
-fitresult = model.fit(initial_parameters=initial_params, maxiter=1000, verbose=False)
 
-params, current_distribution, transition_tensor, distribution_history, negative_log_likelihood = fitresult
-print(params)
-
+msm_result = model.fit(initial_parameters=initial_params, maxiter=1000)
 ```
 
-    [0.22855803 3.1763792  0.44004682 1.0000163  0.9999837 ]
+`msm_result` is a custom dataclass (`msm_metadata`) that contains relevant information about the model. This construct reduces the verbosity of the API, as it can be passed as the only input required to operate with the following methods.
 
-
-It is also possible to make simulations with the MSM. To avoid tracing issues with JAX, the parameters are to be given as input for the simulation. Follows an example with the parameters of the fitted model above.
+It contains:
+- `filtered`: a dictionary containing the current distribution of the latent components, the list of distribution list at each time step, inferred using the forward algorithm, the transition tensor of the model (in factor form), and the vector of latent states
+- `parameters`: a dictionary containing the model parameters
+- `hyperparameters:` a dictionary containing the hyperparameters of the model (the number of volatility components and the marginal probability mass)
+- `optimization_info`: information about the optimization process
+- `name`: the internal name of the model (defaults to "MSM")
+- `data`: the input data
+- `data_log_change`: the logarithmic change between each data point and its next observation (e.g. the log. return if the original data is a series of financial prices).
 
 
 ```python
-num_latent = model.num_latent
-unconditional_term = params[0]
-arrival_gdistance = params[1]
-hf_arrival = params[2]
-marg_support = params[3:]
-
-poisson_arrivals = 1 - (1 - hf_arrival) ** (1 / (arrival_gdistance ** (jnp.arange(num_latent, 0, -1) - 1)))
-
-simulation = model.simulation(number_simulations= 1000, unconditional_term = unconditional_term,
-                              poisson_arrivals=poisson_arrivals,
-                              marginal_support = marg_support
-)
-
+print(msm_result.parameters)
 ```
 
-Finally a 7 period forecast. The transition tensor and current distribution are required as input
+    {'unconditional_term': Array(0.27496925, dtype=float32), 'arrival_gdistance': Array(3.3334007, dtype=float32), 'hf_arrival': Array(0.265644, dtype=float32), 'marginal_support': Array([1.0000088 , 0.99999124], dtype=float32)}
+
+
+It is also possible to make simulations with the MSM. The `MSM.simulation` method takes a `msm_metadata` object as input to choose the parameters, as it is intended to be used to simulate data from a fitted model, as above. If the user wants to simulate from chosen parameters, a `msm_metadata` object needs to be initialized with them.
+
+Follows an example with the parameters of the fitted model above. It returns a tuple containing the simulated logarithmic change (e.g. 1 step return) and corresponding implied volatility.
 
 
 ```python
-forecast = model.forecast(7, current_distribution, *transition_tensor)
+ret, vol = model.simulation(n_simulations = 1000, model_info = msm_result)
 ```
 
+Finally a 7 period forecast. The method returns the predictive distribution at each forecast horizon, so that it may be used for both point-expectation and uncertainty intervals.
 
-## License
 
-`fractrics` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+```python
+forecast = model.forecast(horizon=7, model_info=msm_result)
+```
 
+## Project Structure
+```
+.
+├── notebooks                     # [example jupyter notebooks]
+└── src/fractrics                 # [main code repository]
+    ├── _pending_refactor         # legacy code that needs to be restructured
+    ├── _ts_components            # abstract classes and methods for time series
+    ├── time_series               # concretization classes for time series models
+    └── diagnostics.py            # Statistics to test performances of models
+
+```
 ## Planned updates
 
-- refactoring the functions in `_pending_refactor`.
-- `diagnostics.py`: adding other common metrics.
 - `_ts_components/_HMM/base.py`:
     - implementing viterbi and backwards algorithms
     - generalize components of the forward algorithms that apply to other hidden markov models
 - `MSM`:
-    - use pytrees or other forms of custom class to facilitate the usage of the API and store valuable information of fitted model.
     - implement standard errors and robust standard erros of the parameters (pseudo-code commented in already)
     - implement model selection metrics
     - model implied moments, value at risk.
     - Allow for creating simulations without initializing the model with a time series.
-- `level_MSM` re-implement the model using the new architecture of the package
+- `diagnostics.py`: adding other common metrics.
+- refactoring the functions in `_pending_refactor`.
 
 ## References
 
@@ -135,7 +144,7 @@ forecast = model.forecast(7, current_distribution, *transition_tensor)
 
 - Calvet, L.E., Fisher, A.J. and Thompson, S.B. (2004). Volatility Comovement: A Multifrequency Approach. SSRN Electronic Journal. doi:https://doi.org/10.2139/ssrn.582541.
 
-- Diodati, A. (2025). Tensor representation of Markov Switching Multifractal Models. doi:https://doi.org/10.2139/ssrn.5276090.
+- Ghahramani, Z. and Jordan, M.I. (1997). Factorial Hidden Markov Models. Machine Learning, 29(2/3), pp.245–273. doi:https://doi.org/10.1023/a:1007425814087.
 
 - Lux, T. (2008). The Markov-Switching Multifractal Model of Asset Returns. Journal of Business & Economic Statistics, 26(2), pp.194–210. doi:https://doi.org/10.1198/073500107000000403.
 
@@ -146,3 +155,7 @@ forecast = model.forecast(7, current_distribution, *transition_tensor)
 - Murphy, K.P. (2012). Machine learning : a probabilistic perspective. Cambridge (Ma): Mit Press.
 
 - Rypdal, M. and Løvsletten, O. (2011). Multifractal modeling of short-term interest rates. arXiv (Cornell University).
+
+## License
+
+`fractrics` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.

@@ -1,7 +1,6 @@
 # Mid-level classes for Hidden Markov Models
 
 # TODO: 
-# proper math rendering
 # GENERALIZE discrete_distribution to any discrete with dependence adjustment factor
 # handling pandas inputs (e.g. py_trees)
 
@@ -13,15 +12,30 @@
 import jax.numpy as jnp
 import numpy as np
 
-from abc import abstractmethod #temporary
+from abc import abstractmethod
+from typing import Dict, Any
+from dataclasses import dataclass, field
 
-from fractrics._ts_components._core import stochastic_ts
-
+from fractrics._ts_components._core import stochastic_ts, ts_metadata
 import fractrics._ts_components._HMM._forward as _forward
 import fractrics._ts_components._HMM._data_likelihood as _data_likelihood
 import fractrics._ts_components._HMM._initial_distribution as _initial_distribution
 import fractrics._ts_components._HMM._transition_tensor as _transition_tensor
 
+@dataclass(frozen=True)
+class hmm_metadata(ts_metadata):
+    
+    states_disjoint_MAP: jnp.ndarray | None = None
+    states_viterbi: jnp.ndarray | None = None
+    
+    #TODO: consider enforcing typings inside dictionarieswith TypedDict
+    filtered: Dict[str, Any] = field(default_factory=lambda:{
+        'current_distribution': None,
+        'distribution_list': None,
+        'transition_tensor': None,
+        'latent_states': None
+    })
+    
 class HMM(stochastic_ts):
     """Generic class for Hidden Markov Models."""
 
@@ -35,7 +49,7 @@ class HMM(stochastic_ts):
         
         super().__init__(ts, name)
 
-        self.num_latent = num_latent
+        self.n_latent = num_latent
         self._initial_dist = initial_dist
         self._data_likelihood = data_likelihood
         self._transition_tensor = transition_tensor
