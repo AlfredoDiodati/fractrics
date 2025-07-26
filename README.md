@@ -68,7 +68,6 @@ initial_params = jnp.array([
     2,    #unconditional term
     3.0,    #arrival_gdistance
     0.98,   #hf_arrival
-
     #support
     1.5,    
     0.5
@@ -82,6 +81,8 @@ msm_result = model.fit(initial_parameters=initial_params, maxiter=1000)
 It contains:
 - `filtered`: a dictionary containing the current distribution of the latent components, the list of distribution list at each time step, inferred using the forward algorithm, the transition tensor of the model (in factor form), and the vector of latent states
 - `parameters`: a dictionary containing the model parameters
+- `standard_errors`: a dictionary containing the model standard errors
+- `robust_standard_errors`: a dictionary containing the [Eicker–Huber–White](https://en.wikipedia.org/wiki/Heteroskedasticity-consistent_standard_errors) standard errors
 - `hyperparameters:` a dictionary containing the hyperparameters of the model (the number of volatility components and the marginal probability mass)
 - `optimization_info`: information about the optimization process
 - `name`: the internal name of the model (defaults to "MSM")
@@ -90,10 +91,10 @@ It contains:
 
 
 ```python
-print(msm_result.parameters)
+print(msm_result.standard_errors)
 ```
 
-    {'unconditional_term': Array(0.27496925, dtype=float32), 'arrival_gdistance': Array(3.3334007, dtype=float32), 'hf_arrival': Array(0.265644, dtype=float32), 'marginal_support': Array([1.0000088 , 0.99999124], dtype=float32)}
+    {'unconditional_term': Array(0.04604646, dtype=float32), 'arrival_gdistance': Array(1.2509077e+12, dtype=float32), 'hf_arrival': Array(125258.54, dtype=float32), 'marginal_support': Array([0.6123724, 0.6123662], dtype=float32)}
 
 
 It is also possible to make simulations with the MSM. The `MSM.simulation` method takes a `msm_metadata` object as input to choose the parameters, as it is intended to be used to simulate data from a fitted model, as above. If the user wants to simulate from chosen parameters, a `msm_metadata` object needs to be initialized with them.
