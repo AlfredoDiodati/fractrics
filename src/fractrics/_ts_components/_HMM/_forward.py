@@ -8,7 +8,6 @@ from jax.scipy.special import logsumexp
 
 # TODO: add touple check using from typing import Tuple
 # consider precision tuning (float32/bfloat16) for speedup
-# build optimized engine for HMMs where emission factorize
 # consider using predictive update directly in log space
 
 class forward_update:
@@ -86,14 +85,16 @@ class factor_transition(forward_update):
             log_nonnormalized_posterior = log_predictive_tensor + log_data_likelihood_row
             log_loss_likelihood = -logsumexp(log_nonnormalized_posterior)
             log_normalized_posterior = log_nonnormalized_posterior + log_loss_likelihood
-            return (log_normalized_posterior, nl_loss_likelihood + log_loss_likelihood), log_normalized_posterior
+            
+            return (log_normalized_posterior, nl_loss_likelihood + log_loss_likelihood), (log_normalized_posterior, log_loss_likelihood)
         
         carry_initial = (log_tensor_initial_distribution, 0.0)
         
-        (log_final_posterior, final_loss), log_distribution_list = scan(step, carry_initial, log_data_likelihood_tensor)
-        return final_loss, jnp.exp(log_final_posterior), jnp.exp(log_distribution_list)
+        (log_final_posterior, final_loss), (log_distribution_list, nll_list) = scan(step, carry_initial, log_data_likelihood_tensor)
+        # NOTE: nll_list is necessary for computing the robust standard errors
+        return final_loss, jnp.exp(log_final_posterior), jnp.exp(log_distribution_list), nll_list
     
-    #TODO: move in HMM base class by handling the specific inputs
+    #TODO: move in HMM base class by handling the specific inputs, add point forecast
     def forecast(self, horizon:int, prior: jnp.ndarray, *transition_matrices: jnp.ndarray):
         predictive_function = self.make_predictive_function(*transition_matrices)
         

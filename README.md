@@ -129,7 +129,8 @@ forecast = model.forecast(horizon=7, model_info=msm_result)
     - implementing viterbi and backwards algorithms
     - generalize components of the forward algorithms that apply to other hidden markov models
 - `MSM`:
-    - implement standard errors and robust standard erros of the parameters (pseudo-code commented in already)
+    - create summary function similar to `R`'s.
+    - create plot functions.
     - implement model selection metrics
     - model implied moments, value at risk.
     - Allow for creating simulations without initializing the model with a time series.

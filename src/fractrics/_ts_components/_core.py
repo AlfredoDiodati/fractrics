@@ -6,7 +6,7 @@ import pandas as pd
 import jax.numpy as jnp
 from abc import abstractmethod, ABC
 
-from typing import Dict, Tuple, Any
+from typing import Dict, Any
 from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
@@ -17,7 +17,6 @@ class ts_metadata:
     parameters: Dict[str, Any] = field(default_factory=dict)
     hyperparameters: Dict[str, Any] = field(default_factory=dict)
     optimization_info: Dict[str, Any] = field(default_factory=dict)
-    
 
 class time_series(ABC):
     """Behavior structure of time series models."""
