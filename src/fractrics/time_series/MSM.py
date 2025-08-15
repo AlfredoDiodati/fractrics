@@ -189,8 +189,9 @@ class MSM(HMM):
     def simulation(self,
             n_simulations:int,
             model_info:msm_metadata,
-            key = random.PRNGKey(0))->tuple[jnp.ndarray, jnp.ndarray]:
-
+            seed:int=0)->tuple[jnp.ndarray, jnp.ndarray]:
+        
+        key = random.PRNGKey(seed)
         key, key_init = random.split(key)
 
         initial_states = random.choice(

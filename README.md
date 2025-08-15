@@ -33,10 +33,11 @@ To use the model, start with an example time series. Note that the model is only
 
 ```python
 from fractrics.time_series.MSM import MSM
+from fractrics.utilities import summary
 import jax.numpy as jnp
 import numpy as np
 
-ts_test = jnp.array(np.random.normal(50, 10, 10))
+ts_test = np.loadtxt("data/msm_simulation.csv")[:50]
 ```
 
 Then initialize the model. It requires the following hyperparameters:
@@ -89,12 +90,30 @@ It contains:
 - `data`: the input data
 - `data_log_change`: the logarithmic change between each data point and its next observation (e.g. the log. return if the original data is a series of financial prices).
 
+Most of this information can be printed using the `summary()` function. Note: if the attribute `latex` is True, then summary will print a latex table.
+
 
 ```python
-print(msm_result.standard_errors)
+summary(msm_result)
 ```
 
-    {'unconditional_term': Array(0.04604646, dtype=float32), 'arrival_gdistance': Array(1.2509077e+12, dtype=float32), 'hf_arrival': Array(125258.54, dtype=float32), 'marginal_support': Array([0.6123724, 0.6123662], dtype=float32)}
+    ------------------  -------------------------  -------------------
+    model:              MSM
+    ------------------  -------------------------  -------------------
+    Hyperparameters
+    ------------------  -------------------------  -------------------
+    n_latent            marginal_probability_mass
+    3                   [0.5 0.5]
+    ------------------  -------------------------  -------------------
+                        Parameters                 Standard Errors
+    ------------------  -------------------------  -------------------
+    unconditional_term  0.6317223310470581         0.06381293386220932
+    arrival_gdistance   3.0993151664733887         nan
+    hf_arrival          0.5677862763404846         nan
+    marginal_support    [1.        1.0000001]      [0.    0.125]
+    ------------------  -------------------------  -------------------
+    Likelihood:         -20.905973434448242
+    ------------------  -------------------------  -------------------
 
 
 It is also possible to make simulations with the MSM. The `MSM.simulation` method takes a `msm_metadata` object as input to choose the parameters, as it is intended to be used to simulate data from a fitted model, as above. If the user wants to simulate from chosen parameters, a `msm_metadata` object needs to be initialized with them.
@@ -103,7 +122,7 @@ Follows an example with the parameters of the fitted model above. It returns a t
 
 
 ```python
-ret, vol = model.simulation(n_simulations = 1000, model_info = msm_result)
+ret, vol = model.simulation(n_simulations = 1000, model_info = msm_result, seed=123)
 ```
 
 Finally a 7 period forecast. The method returns the predictive distribution at each forecast horizon, so that it may be used for both point-expectation and uncertainty intervals.
@@ -113,14 +132,16 @@ Finally a 7 period forecast. The method returns the predictive distribution at e
 forecast = model.forecast(horizon=7, model_info=msm_result)
 ```
 
+
 ## Project Structure
 ```
 .
 ├── notebooks                     # [example jupyter notebooks]
 └── src/fractrics                 # [main code repository]
-    ├── _pending_refactor         # legacy code that needs to be restructured
-    ├── _ts_components            # abstract classes and methods for time series
-    ├── time_series               # concretization classes for time series models
+    ├── _pending_refactor/        # legacy code that needs to be restructured
+    ├── _ts_components/           # abstract classes and methods for time series
+    ├── time_series/              # concretization classes for time series models
+    ├── utilities.py              # contains summary function
     └── diagnostics.py            # Statistics to test performances of models
 
 ```
@@ -130,8 +151,9 @@ forecast = model.forecast(horizon=7, model_info=msm_result)
     - implementing viterbi and backwards algorithms
     - generalize components of the forward algorithms that apply to other hidden markov models
 - `MSM`:
-    - create summary function similar to `R`'s.
     - create plot functions.
+        - visualize states
+        - visualize learning path
     - implement model selection metrics
     - model implied moments, value at risk.
     - Allow for creating simulations without initializing the model with a time series.
