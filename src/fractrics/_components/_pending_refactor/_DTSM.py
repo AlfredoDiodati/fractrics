@@ -1,21 +1,13 @@
 import jax
 import jax.numpy as jnp
-from jaxopt import LBFGSB
-from functools import partial
-from jaxopt import ScipyMinimize
-from fractrics.pending_refactor.unscent_KF import *
+from fractrics.unscent_KF import *
 
 class CascadeDTSM:
-    """
-    Cascade dynamic term structure model as in Calvet, Fisher, and Wu (2018).
-    """
+    """Cascade dynamic term structure model as in Calvet, Fisher, and Wu (2018)."""
     def __init__(self, rates, n, taus, dt):
         self.n = n
-        #series of the observed OIS rates
         self.rates = rates
-        #terms of the rates
         self.terms = taus
-        #time lag
         self.dt = dt
         
         if len(self.terms) != self.rates.shape[1]:
@@ -24,22 +16,18 @@ class CascadeDTSM:
             f"must equal number of observed rates (rates.shape[1]={self.rates.shape[1]})"
             )
     
-    @partial(jax.jit, static_argnames=["self", "mat"])
     def _kappas(self, k1, b, mat=False):
-        """
-        Speed of factors.
+        """Speed of factors.
         :param mat: if True computes kappas in the lower-triangular form, otherwise returns a vector
         """
         kappas = k1*b**(jnp.arange(start=1, stop=self.n+1)-1)
         if mat: return jnp.diag(kappas) + jnp.diag(-kappas[1:], k=-1)
         else: return kappas
     
-    @partial(jax.jit, static_argnames=["self"])    
     def _theta_q(self, theta_r, gamma, sigma, kappas):
         """risk-neutral drift adjustments"""
         return theta_r-gamma*sigma**2/kappas
     
-    @partial(jax.jit, static_argnames=["self"])    
     def _fx(self, x_prev, dt, params):
         """
         Latent state-space dynamics. Error matrix is dealt with inside the Unscent Kalman filter.
@@ -50,14 +38,12 @@ class CascadeDTSM:
         """
         k1, b, theta_r = params
         kappam = self._kappas(k1, b, mat=True)
-        #use matrix exponential, not element wise exp
         Phi = jax.scipy.linalg.expm(-dt*kappam)
         A = (jnp.identity(self.n) - Phi) @ jnp.full(self.n, theta_r)
         x_next = A + Phi @ x_prev
         
         return x_next
     
-    @partial(jax.jit, static_argnames=["self"])    
     def zcb_price(self, tau, k1, theta_r, sigma, kappas, gamma, x):
         
         n = self.n
@@ -72,19 +58,15 @@ class CascadeDTSM:
         D3 = kappas[M2] - kappas[I2]
         prod_diff = jnp.prod(jnp.where(mask3, D3, 1.0), axis=2)
 
-        # final denominator matrix:
         den = (kappas[None, :] * kappas[:, None]) * prod_diff
 
-        # alpha matrix:
         alpha_mat = num_mat / den
         mask_load = idx[None, :] >= idx[:, None]
         alpha_mat = alpha_mat * mask_load
 
-        # price loadings b (integral of a)
         M = 1.0 - jnp.exp(-kappas * tau)
         ploads = alpha_mat @ M
 
-        # Intercept c
         G = tau - (1 - jnp.exp(-kappas * tau)) / kappas
 
         l1 = theta_r * k1 * jnp.dot(alpha_mat[:, 0], G)
@@ -105,10 +87,8 @@ class CascadeDTSM:
         
         return jnp.exp(-jnp.dot(ploads, x) - intercept)
 
-    @partial(jax.jit, static_argnames=["self"])
     def _hois(self, x, params):
-        """
-        Observation function using OIS rates.
+        """Observation function using OIS rates.
         :param params: touple of parameters:
         """
         b, k1, theta_r, gamma, sigma = params
@@ -123,15 +103,13 @@ class CascadeDTSM:
     def fit(self, init_param, maxiter=500, verb=True, method="Nelder-Mead"):
 
         def unpack_params(x):
-            #slice out params
             log_k1   = x[0]
             log_sigma = x[1]
-            log_b_minus1  = x[2]
-            theta_r = x[3]  # no constraint
-            gamma = x[4]    # no constraint
+            log_b_minus1 = x[2]
+            theta_r = x[3]
+            gamma = x[4]
             log_sigma_e = x[5]
 
-            #back‐transform
             k1 = jnp.exp(log_k1)
             sigma = jnp.exp(log_sigma)
             sigma_e = jnp.exp(log_sigma_e)
@@ -144,12 +122,9 @@ class CascadeDTSM:
             fx_params = (k1, b, theta_r)
             hx_params = (b, k1, theta_r, gamma, sigma)
 
-            # observation error covariance
             R = jnp.eye(self.rates.shape[1])*(sigma_e**2)
-            # X noise covariance
             Q = jnp.eye(self.n)
 
-            # unscent Kalman filter set-up
             alpha, beta, kappa = 1.0, 2.0, 0.0
             lam = alpha**2 * (self.n + kappa) - self.n
             c   = self.n + lam
@@ -168,7 +143,6 @@ class CascadeDTSM:
                 new_st, negll = ukf_step(st, y, *ukf_args)
                 return new_st, (new_st, negll)
             
-            #computes likelihood for given rates
             _, (states, nlls) = jax.lax.scan(
                 scan_fn,
                 init_state,
@@ -176,61 +150,6 @@ class CascadeDTSM:
             )
             
             return jnp.sum(nlls)
-
-        #bounded gradient optimization
-        if method=="LBFGSB":
-
-            bounds = (jnp.repeat(-1000, init_param.shape[0]), jnp.repeat(1000, init_param.shape[0]))
-            solver = LBFGSB(fun=loss_fn, maxiter=maxiter, verbose=verb, implicit_diff=False, history_size=5)
-            result = solver.run(init_param, bounds=bounds)
-            self.result = result
-            self.converged = result.state.error < solver.tol
-            self.fitted = True
-
-        elif method=="Nelder-Mead":
-            solver = ScipyMinimize(method="Nelder-Mead",fun=loss_fn,maxiter=maxiter, options={"disp": verb})
-            self.result = solver.run(init_param)
-            self.num_iter = self.result.state.iter_num
-            self.converged = self.result.state.success
-            self.ll = self.result.state.fun_val
-        
-        elif method == "differential_evolution":
-
-            # Define bounds for each parameter (adjust as needed)
-            bounds = [(-5, 5),
-                      (-5, 5), 
-                      (-5, 5),
-                      (-5, 5),
-                      (-5, 5)] 
-
-            # DE expects numpy arrays, so wrap loss_fn
-            def loss_fn_np(x):
-                x = jnp.array(x)
-                return float(loss_fn(x))
-
-            result = differential_evolution(loss_fn_np, bounds, maxiter=maxiter, disp=verb)
-            self.converged = result.success
-            if not self.converged:
-                print("Warning! Optimization did not converge.")
-            # Mimic the result object for consistency
-            class DummyResult:
-                pass
-            dummy = DummyResult()
-            dummy.params = jnp.array(result.x)
-            self.result = dummy
-            result = dummy
-            
-        else: raise ValueError("Selected method not supported.")
-        
-        if not self.converged: print("Warning! Optimization did not converge.")
-        self.fitted = True
-        self.k1, self.sigma, self.b, self.theta_r, self.gamma, self.sigma_e = unpack_params(self.result.params)
-
-    def manual_fit(self, params, filtered_xT, ll, converged) :
-        self.k1, self.sigma, self.b, self.theta_r, self.gamma, self.sigma_e = params
-        self.ll = ll
-        self.fitted = True
-        self.converged = converged
 
     def filter(self):
         """
@@ -273,24 +192,18 @@ class CascadeDTSM:
 
         return filtered_states
 
-    def forecast_zcb(self,
-                     x0: jnp.ndarray,
-                     steps: int,
-                    ) -> jnp.ndarray:
+    def forecast_zcb(self, x0: jnp.ndarray, steps: int) -> jnp.ndarray:
         """
         Forecast zero-coupon bond prices for `self.terms` maturities, over `steps`
         future time‐points, starting from latent state `x0`.
         Returns an array of shape (steps, n_maturities).
         """
         
-        # fx parameters under P
         fx_params = (self.k1, self.b, self.theta_r)
 
         def one_step(x_prev, _):
-            #Predict next latent state (conditional mean)
             x_next = self._fx(x_prev, self.dt, fx_params)
 
-            #Compute ZCB prices at x_next for all self.terms
             kappas = self._kappas(self.k1, self.b)
             zcb_one = jax.vmap(
                 lambda tau: self.zcb_price(
@@ -313,4 +226,3 @@ class CascadeDTSM:
             length=steps
         )
         return zcb_paths
-        

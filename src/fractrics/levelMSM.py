@@ -1,16 +1,14 @@
 from fractrics import nelder_mead
 from fractrics._components.HMM.base import hmm_metadata
-from fractrics._components.HMM.forward import pforecast, update
+from fractrics._components.HMM.forward import update
 from fractrics._components.HMM.data_likelihood import likelihood
 from fractrics._components.HMM.transition_tensor import poisson_arrivals
 from fractrics._components.HMM.initial_distribution import check_marg_prob_mass, multiplicative_cascade, factor_pmas
 
 from dataclasses import dataclass, field, replace
-from jax.lax import scan
-from jax import hessian, jacrev, vmap
+from jax import hessian, jacrev
 
 import jax.numpy as jnp
-import jax.random as random
 from jax.flatten_util import ravel_pytree
 from jax.nn import softplus, sigmoid
 

@@ -166,10 +166,12 @@ Refer to:
 └── src/fractrics                 # [main code repository]
     ├── _components/              # abstract classes and methods for time series
     ├── AR.py                     # Flexible implementation of linear autoregressive models
+    ├── levelMSM.py               # Level Markov Switching Multifractal Implementation
     ├── MSM.py                    # Markov Switching Multifractal Implementation
     ├── utilities.py              # contains summary and plot functions
     ├── nelder_mead.py            # Nelder-Mead solver implementation
     ├── unscent_KF.py             # Unscent Kalman Filter implementation
+    ├── descriptive.py            # Explorative analysis statistics
     └── diagnostics.py            # Statistics to test performances of models
 
 ```
