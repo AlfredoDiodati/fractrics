@@ -1,5 +1,7 @@
+import jax
 import numpy as np
 import pandas as pd
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from fractrics._components.core import ts_metadata
@@ -36,9 +38,6 @@ def plot_forecast(mean, ci_lower, ci_upper, title="Forecast with Confidence Inte
     plt.tight_layout()
     plt.show()
 
-import jax
-import jax.numpy as jnp
-import matplotlib.pyplot as plt
 
 def plot_simulation_batch(returns, vols, percentiles=(5, 95)):
     
