@@ -26,34 +26,18 @@ The main tool in fractrics is the MSM class, an implementation of the univariate
 
 Such structure effectively captures the behaviour of time series with fat tails, hyperbolic correlation decay, and multifractal moments, such as the returns of many financial assets.
 
-The implementation is made in JAX, simplifying parallelization of the code. Moreover, following from [this](https://link.springer.com/article/10.1023/A:1007425814087) paper, the memory complexity of the forward algorithm is reduced, due to the factorization of latent states.
+The implementation is made in JAX, thus leveraging JIT compilation while keeping the simple syntax of python.
 
-To use the model, start with an example time series. Note that the model is only defined for positive time series (as it was created to model prices of financial assets).
+To use the model, we start by simulating data from a MSM process.
+In this package, we adopt a functional style, where methods are free functions (under the `MSM` namespace), while relevant information about the model (data, hyperparameters, parameters, ...) are kept in a `metadata` object, which is the primary input for most of the functions of the package.
 
-
-```python
-from fractrics.time_series.MSM import MSM
-from fractrics.utilities import summary
-import jax.numpy as jnp
-import numpy as np
-
-ts_test = np.loadtxt("data/msm_simulation.csv")[:50]
-```
-
-Then initialize the model. It requires the following hyperparameters:
+To make a simulation, we need to initialize hyperparameters and parameters of the model in the `metadata`. It requires the following hyperparameters:
  - `n_latent`: how many volatility components, integer.
- - `marg_prob_mass`: the probability mass of the marginal distribution of the latent states, needs to sum to 1. 
-
-
-```python
-model = MSM(ts=ts_test, n_latent=3)
-```
-
-To fit the model to the data, start with an initial guess. The `MSM.fit()` method then optimizes the parameters using `jaxopt`'s [Broyden–Fletcher–Goldfarb–Shanno algorithm](https://en.wikipedia.org/wiki/Broyden%E2%80%93Fletcher%E2%80%93Goldfarb%E2%80%93Shanno_algorithm).
+ - `marg_prob_mass`: the probability mass of the marginal distribution of the latent states, needs to sum to 1.
 
 By assumption, all the parameters need to be positive, and have further individual constrains:
 
-- `marg_support`: the support of the marginal probability mass defined in the parameters. It needs to have unity expectation. In the symmetric binomial case, this can be enforced by specifying one value $m_0$, and having the second value be $2 - m_0$.
+- `marg_value`: One of the values of the support of the marginal probability mass defined in the parameters. The marginal probability mass needs to have unity and positive support. In the symmetric binomial case, this can be enforced by specifying one value $m_0$, and having the second value be $2 - m_0$, which is the case that this implementation focuses on. More general marginal distributions could be considered, but then the computations of standard errors may become more challenging, because the unity and positivity constraints impose dependencies on the Hessian matrix, thus making hypothesis tests impossible. 
 
 - `unconditional_term`: the unconditional distribution of the model, a positive double.
 
@@ -61,93 +45,136 @@ By assumption, all the parameters need to be positive, and have further individu
 
 - `hf_arrival`: the highest poisson arrival probability (i.e. the proability of state switch of the highest frequency component).
 
-Note: to maintain the constrains during optimization, the parameters are transformed using mappings.
 
 
 ```python
-initial_params = jnp.array([
-    2,    #unconditional term
-    3.0,    #arrival_gdistance
-    0.98,   #hf_arrival
-    #support
-    1.5,    
-    0.5
-])
+import jax.numpy as jnp
+from fractrics import MSM
 
-msm_result = model.fit(initial_parameters=initial_params, maxiter=1000)
+model = MSM.metadata(data=None,
+    parameters= {
+    'unconditional_term': 1.0,
+    'arrival_gdistance': 3.0,
+    'hf_arrival': 0.98,
+    'marginal_value': 1.5 
+    },
+    
+    num_latent= 5)
 ```
 
-`msm_result` is a custom dataclass (`msm_metadata`) that contains relevant information about the model. This construct reduces the verbosity of the API, as it can be passed as the only input required to operate with the following methods.
+The `MSM.simulation` method takes a `msm_metadata` object as input to choose the parameters.
+
+Follows an example with the parameters of the fitted model above. It returns a tuple containing the simulated logarithmic change (e.g. 1 step return in a financial setting) and corresponding implied volatility.
+
+
+```python
+import matplotlib.pyplot as plt
+ret, vol = MSM.simulation(n_simulations = 1000, model_info = model, seed=123)
+plt.plot(ret)
+plt.show()
+```
+
+
+    
+![png](plots/MSM_example_3_0.png)
+    
+
+
+To fit the model to the data, start with an initial guess. The `MSM.fit()` method then optimizes the parameters using a custom implementation of the [Nelder-Mead method](https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method), and the constrains are enforced with an internal re-mappig. 
+
+Note that the model is only defined for positive time series (as it was created to model prices of financial assets), so we reconstruct the price from `ret`.
+
+
+```python
+from dataclasses import replace
+x = jnp.exp(jnp.cumsum(ret))
+model = replace(model, data=x)
+msm_result = MSM.fit(model, max_iter=1000)
+```
+
+`msm_result` is also `msm_metadata` that contains relevant information about the model. This construct reduces the verbosity of the API, as it can be passed as the only input required to operate with the following methods.
 
 It contains:
-- `filtered`: a dictionary containing the current distribution of the latent components, the list of distribution list at each time step, inferred using the forward algorithm, the transition tensor of the model (in factor form), and the vector of latent states
-- `parameters`: a dictionary containing the model parameters
+- `filtered`: a dictionary containing the current distribution of the latent components, the list of distribution list at each time step, inferred using the forward algorithm, the transition tensor of the model (in factor form), and the vector of latent states (which can be populated using the `MSM.filter()` method.)
+- `parameters`: a dictionary containing the model parameters.
 - `standard_errors`: a dictionary containing the model standard errors
 - `robust_standard_errors`: a dictionary containing the [Eicker–Huber–White](https://en.wikipedia.org/wiki/Heteroskedasticity-consistent_standard_errors) standard errors
-- `hyperparameters:` a dictionary containing the hyperparameters of the model (the number of volatility components and the marginal probability mass)
+- `num_latent:` the number of latent volatility components. 
 - `optimization_info`: information about the optimization process
 - `name`: the internal name of the model (defaults to "MSM")
 - `data`: the input data
 - `data_log_change`: the logarithmic change between each data point and its next observation (e.g. the log. return if the original data is a series of financial prices).
 
-Most of this information can be printed using the `summary()` function. Note: if the attribute `latex` is True, then summary will print a latex table.
+Most of this information can be printed using the `summary()` function.
 
 
 ```python
+from fractrics.utilities import summary
 summary(msm_result)
 ```
 
-    ------------------  -------------------------  -------------------
-    model:              MSM
-    ------------------  -------------------------  -------------------
-    Hyperparameters
-    ------------------  -------------------------  -------------------
-    n_latent            marginal_probability_mass
-    3                   [0.5 0.5]
-    ------------------  -------------------------  -------------------
-                        Parameters                 Standard Errors
-    ------------------  -------------------------  -------------------
-    unconditional_term  0.6317223310470581         0.06381293386220932
-    arrival_gdistance   3.0993151664733887         nan
-    hf_arrival          0.5677862763404846         nan
-    marginal_support    [1.        1.0000001]      [0.    0.125]
-    ------------------  -------------------------  -------------------
-    Likelihood:         -20.905973434448242
-    ------------------  -------------------------  -------------------
+                        parameters standard_errors robust_standard_errors
+    unconditional_term   1.4911367      0.11745711             0.13154256
+    arrival_gdistance      6.67688             nan              4.2458887
+    hf_arrival          0.02006583     0.017231423            0.019555239
+    marginal_value       1.6799235      0.02701448            0.028021006
+    negative_log_likelihood    -1467.5436
+    n_iteration                       161
+    is_converged                     True
+    dtype: object
+    
 
-
-It is also possible to make simulations with the MSM. The `MSM.simulation` method takes a `msm_metadata` object as input to choose the parameters, as it is intended to be used to simulate data from a fitted model, as above. If the user wants to simulate from chosen parameters, a `msm_metadata` object needs to be initialized with them.
-
-Follows an example with the parameters of the fitted model above. It returns a tuple containing the simulated logarithmic change (e.g. 1 step return) and corresponding implied volatility.
+Finally, a 200 period forecast. The method returns the (noise-free) expected state at each forecast horizon, along with selected confidence intervals.
 
 
 ```python
-ret, vol = model.simulation(n_simulations = 1000, model_info = msm_result, seed=123)
+filtered = MSM.filter(msm_result)
+expect, c1, c2 = MSM.forecast(horizon=200, model_info=filtered, quantiles=(0.05, 0.95))
+from fractrics.utilities import plot_forecast
+plot_forecast(expect, c1, c2)
 ```
 
-Finally a 7 period forecast. The method returns the predictive distribution at each forecast horizon, so that it may be used for both point-expectation and uncertainty intervals.
+
+    
+![png](plots/MSM_example_9_0.png)
+    
+
+
+Clearly, including noise in the forecast can have value in practical applications (such as scenario analysis), so we can instead bootstrap paths using the fitted model.
 
 
 ```python
-forecast = model.forecast(horizon=7, model_info=msm_result)
+from fractrics.utilities import plot_simulation_batch
+return_f, _ = MSM.boostrap_forecast(filtered, num_simulation=4000, horizon=200)
+plot_simulation_batch(return_f)
 ```
 
+
+    
+![png](plots/MSM_example_11_0.png)
+##  MSM documentation
+
+Refer to:
+- [Quick example](../../../README.md#quick-example) for using the MSM class.
+
+- [Transition simulation](../../../notebooks/transition_simulation.ipynb) for an explanation of the optimized factor transition.
 
 ## Project Structure
 ```
 .
 ├── notebooks                     # [example jupyter notebooks]
 └── src/fractrics                 # [main code repository]
-    ├── _pending_refactor/        # legacy code that needs to be restructured
-    ├── _ts_components/           # abstract classes and methods for time series
-    ├── time_series/              # concretization classes for time series models
-    ├── utilities.py              # contains summary function
+    ├── _components/              # abstract classes and methods for time series
+    ├── MSM.py                    # Markov Switching Multifractal Implementation
+    ├── utilities.py              # contains summary and plot functions
+    ├── nelder_mead.py            # Nelder-Mead solver implementation
+    ├── unscent_KF.py             # Unscent Kalman Filter implementation
     └── diagnostics.py            # Statistics to test performances of models
 
 ```
 ## Planned updates
 
-- `_ts_components/_HMM/base.py`:
+- `components/_HMM/base.py`:
     - implementing viterbi and backwards algorithms
     - generalize components of the forward algorithms that apply to other hidden markov models
 - `MSM`:
@@ -155,10 +182,9 @@ forecast = model.forecast(horizon=7, model_info=msm_result)
         - visualize states
         - visualize learning path
     - implement model selection metrics
-    - model implied moments, value at risk.
     - Allow for creating simulations without initializing the model with a time series.
 - `diagnostics.py`: adding other common metrics.
-- refactoring the functions in `_pending_refactor`.
+- re-implementing the functions in `_components/_pending_refactor`:
 
 ## References
 

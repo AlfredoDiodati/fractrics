@@ -1,10 +1,9 @@
 from typing import NamedTuple
 import jax, jax.numpy as jnp
-from functools import partial
 
 class UKFState(NamedTuple):
-    x: jnp.ndarray  # (dim_x,)
-    P: jnp.ndarray  # (dim_x, dim_x)
+    x: jnp.ndarray
+    P: jnp.ndarray
 
 def sigma_points(x, P, c):
     A = jnp.linalg.cholesky(c * P)
@@ -65,7 +64,6 @@ def update(x, P, z, hx, hx_args, R, Wm, Wc, c):
     
     return x_new, P_new, ll
 
-@partial(jax.jit, static_argnames=('fx','hx'))
 def ukf_step(state: UKFState, z, fx, fx_args, hx, hx_args, Q, R, Wm, Wc, dt, c):
     (x, P) = state
 

@@ -4,7 +4,6 @@ from jaxopt import LBFGSB
 from functools import partial
 from jaxopt import ScipyMinimize
 from fractrics.pending_refactor.unscent_KF import *
-from scipy.optimize import differential_evolution
 
 class CascadeDTSM:
     """
@@ -307,7 +306,6 @@ class CascadeDTSM:
 
             return x_next, zcb_one
 
-        # scan over `steps` iterations
         _, zcb_paths = jax.lax.scan(
             one_step,
             x0,

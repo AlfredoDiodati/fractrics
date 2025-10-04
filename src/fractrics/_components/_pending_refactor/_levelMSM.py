@@ -9,7 +9,7 @@ import jax.scipy.stats as jss
 from jaxopt import ScipyMinimize
 from scipy.stats import rv_discrete
 from jax.scipy.special import logsumexp
-from fractrics._deprecated._pending_refactor._diagnostics import pareto_shape, tail_pv
+from fractrics.diagnostics import pareto_shape, tail_pv
 
 def sim_levelMSM(support, prob, sigma_l, b, gamma_k, k, beta0, beta1, eta, T, init):
     """
