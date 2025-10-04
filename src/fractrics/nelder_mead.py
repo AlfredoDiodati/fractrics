@@ -13,7 +13,7 @@ def solver(
     reflection_factor: float = 1.0,
     expansion_factor: float = 2.0,
     contraction_factor: float = 0.5,
-    shrink_factor: float = 0.5, has_aux: bool = False) -> tuple[jnp.ndarray, jnp.ndarray]:
+    shrink_factor: float = 0.5) -> tuple[jnp.ndarray, float, bool, float]:
     """f must be JAX-traceable and return a scalar jnp.ndarray."""
     n = initial_guess.shape[0]
 
