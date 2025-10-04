@@ -165,6 +165,7 @@ Refer to:
 ├── notebooks                     # [example jupyter notebooks]
 └── src/fractrics                 # [main code repository]
     ├── _components/              # abstract classes and methods for time series
+    ├── AR.py                     # Flexible implementation of linear autoregressive models
     ├── MSM.py                    # Markov Switching Multifractal Implementation
     ├── utilities.py              # contains summary and plot functions
     ├── nelder_mead.py            # Nelder-Mead solver implementation
