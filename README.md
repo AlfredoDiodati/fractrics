@@ -168,6 +168,7 @@ Refer to:
     ├── AR.py                     # Flexible implementation of linear autoregressive models
     ├── levelMSM.py               # Level Markov Switching Multifractal Implementation
     ├── MSM.py                    # Markov Switching Multifractal Implementation
+    ├── garchml.py                # In mean-level GARCH Implementation
     ├── gaussian_level.py         # Gaussian Level Implementation
     ├── utilities.py              # contains summary and plot functions
     ├── nelder_mead.py            # Nelder-Mead solver implementation
