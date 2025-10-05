@@ -168,6 +168,7 @@ Refer to:
     ├── AR.py                     # Flexible implementation of linear autoregressive models
     ├── levelMSM.py               # Level Markov Switching Multifractal Implementation
     ├── MSM.py                    # Markov Switching Multifractal Implementation
+    ├── gaussian_level.py         # Gaussian Level Implementation
     ├── utilities.py              # contains summary and plot functions
     ├── nelder_mead.py            # Nelder-Mead solver implementation
     ├── unscent_KF.py             # Unscent Kalman Filter implementation

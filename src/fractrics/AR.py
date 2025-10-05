@@ -1,12 +1,11 @@
-
-import jax.numpy as jnp
 from jax import lax
-import jax.scipy.stats as jss
+import jax.numpy as jnp
 from types import ModuleType
-from dataclasses import dataclass, replace, field
-from fractrics._components.core import ts_metadata
+import jax.scipy.stats as jss
 from fractrics import nelder_mead
 from jax.flatten_util import ravel_pytree
+from dataclasses import dataclass, replace, field
+from fractrics._components.core import ts_metadata
 
 @dataclass(frozen=True)
 class metadata(ts_metadata):
