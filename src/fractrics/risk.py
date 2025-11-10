@@ -71,3 +71,27 @@ def gpareto_tail(ts:jnp.ndarray, initial_guess: jnp.ndarray, location = 0.0) -> 
     
     fitted = deconstrain(result[0])
     return fitted, result[1], result[2], result[3]
+
+def lower_tail_dependence(x:jnp.ndarray, y:jnp.ndarray, alpha:float|None = None, k:int|None = None):
+    x_sorted = jnp.sort(x, descending=False)
+    y_sorted = jnp.sort(y, descending=False)
+    k = int(x.shape[0] * alpha) if k is None else k
+    x_k = x_sorted[k - 1]
+    y_k = y_sorted[k - 1]
+    is_x_ltk = x <= x_k
+    is_y_ltk = y <= y_k
+    
+    is_joint_ltk = is_x_ltk * is_y_ltk
+    return jnp.sum(is_joint_ltk) / k
+
+def upper_tail_dependence(x:jnp.ndarray, y:jnp.ndarray, alpha:float|None = None, k:int|None = None):
+    x_sorted = jnp.sort(x, descending=False)
+    y_sorted = jnp.sort(y, descending=False)
+    k = int(x.shape[0] * alpha) if k is None else k
+    x_nmk = x_sorted[x.shape - k - 1]
+    y_nmk = y_sorted[x.shape - k - 1]
+    is_x_ltk = x > x_nmk
+    is_y_ltk = y > y_nmk
+    
+    is_joint_ltk = is_x_ltk * is_y_ltk
+    return jnp.sum(is_joint_ltk) / k
