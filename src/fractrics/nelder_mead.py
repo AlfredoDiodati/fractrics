@@ -14,7 +14,9 @@ def solver(
     expansion_factor: float = 2.0,
     contraction_factor: float = 0.5,
     shrink_factor: float = 0.5) -> tuple[jnp.ndarray, float, bool, float]:
-    """f must be JAX-traceable and return a scalar jnp.ndarray."""
+    """f must be JAX-traceable and return a scalar jnp.ndarray.
+        returns: solution, score value, is_converged (boolean), number of iterations
+    """
     n = initial_guess.shape[0]
 
     scale = 0.05 * jnp.maximum(jnp.abs(initial_guess), 1.0)

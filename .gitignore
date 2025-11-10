@@ -13,3 +13,4 @@ venv/
 *.swp
 .DS_Store
 Thumbs.db
+exercises/
