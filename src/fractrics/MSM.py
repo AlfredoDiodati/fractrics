@@ -1,4 +1,4 @@
-from fractrics.solvers import nelder_mead
+from fractrics.solvers import nelder_mead, momentum_gd
 from fractrics._components.HMM.base import hmm_metadata
 from fractrics._components.HMM.data_likelihood import likelihood
 from fractrics._components.HMM.forward.factor import pforecast, update
@@ -94,7 +94,12 @@ def filter(self:metadata) -> None:
         }
     )
     
-def fit(self:metadata, max_iter:int):
+def fit(self:metadata, max_iter:int, solver:str='nelder-mead'):
+    """
+    Supported solvers: 'nelder-mead' and 'momentum_gd'
+    """
+    if solver == 'nelder-mead': method = nelder_mead
+    else: method = momentum_gd
     
     def constrain_map(params_dict:dict) -> jnp.ndarray:
         uncond_term=softplus(params_dict['unconditional_term'])
@@ -141,8 +146,7 @@ def fit(self:metadata, max_iter:int):
     check_marg_prob_mass(marg_prob_mass)
     ergotic_dist = factor_pmas(marg_prob_mass, self.num_latent)
         
-    params_optimized, nll, is_converged, num_iterations = nelder_mead.solver(initial_guess=param_array, f=objective_fun, max_iter=max_iter)
-    
+    params_optimized, nll, is_converged, num_iterations = method.solver(initial_guess=param_array, f=objective_fun, max_iter=max_iter)
     param_dict = ravel_f(params_optimized)
     prms = constrain_map(param_dict)
     nll_hessian,_ = hessian(nll_f, has_aux=True)(prms)
