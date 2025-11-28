@@ -38,6 +38,7 @@ def plot_forecast(mean, ci_lower, ci_upper, title="Forecast with Confidence Inte
     plt.tight_layout()
     plt.show()
 
+# add legend with color explanations
 def plot_simulation_batch(returns_batch, title: str | None = None):
     """
     Plot cumulative-return paths and color them into `groups` by how far their final cumulative value is from the mean final value.
