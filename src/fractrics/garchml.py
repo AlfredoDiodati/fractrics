@@ -2,12 +2,11 @@ from jax import lax
 import jax.numpy as jnp
 import jax.scipy.stats as jss
 from fractrics import nelder_mead
-from jax.flatten_util import ravel_pytree
 from dataclasses import dataclass, replace, field
 from fractrics._components.core import ts_metadata
 
 @dataclass(frozen=True)
-class metadata():
+class metadata(ts_metadata):
     """
     Dataclass containing all relevant information about a specific model.
     It is used by the garchml() class to store results of maximizations and similar.
