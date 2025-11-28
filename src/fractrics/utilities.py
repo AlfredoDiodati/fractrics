@@ -15,7 +15,7 @@ def summary(model:ts_metadata):
     print(pd.Series(model.optimization_info))
     
 
-def plot_forecast(mean, ci_lower, ci_upper, title="Forecast with Confidence Interval"):
+def plot_forecast(forecast, ci_lower=None, ci_upper=None, title="Forecast with Confidence Interval", mean = None):
     """
     Plot forecast mean with confidence interval shading.
     
@@ -23,13 +23,13 @@ def plot_forecast(mean, ci_lower, ci_upper, title="Forecast with Confidence Inte
     ci_lower: (horizon,) array of lower CI bounds
     ci_upper: (horizon,) array of upper CI bounds
     """
-    horizon = len(mean)
+    horizon = len(forecast)
     x = range(horizon)
     
     plt.figure(figsize=(8, 4))
-    plt.plot(x, mean, color="navy", label="Expected value", linewidth=2)
+    plt.plot(x, forecast, color="navy", label="Expected value", linewidth=2)
     plt.fill_between(x, ci_lower, ci_upper, color="skyblue", alpha=0.3, label="Confidence interval")
-    
+    if mean is not None: plt.hlines(mean, linestyles="--", colors="black", xmax=horizon, xmin=0)
     plt.title(title, fontsize=14)
     plt.xlabel("Horizon", fontsize=12)
     plt.ylabel("Forecast", fontsize=12)

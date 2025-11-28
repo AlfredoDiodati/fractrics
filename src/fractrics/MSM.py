@@ -229,13 +229,15 @@ def simulation(n_simulations:int,
     
     return return_sim, volatility_sim
 
-def forecast(horizon:int, model_info: metadata, 
+def variance_forecast(horizon:int, model_info: metadata, 
         quantiles: tuple[float, float]) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     quantiles = jnp.array(quantiles)
     prob_list = pforecast(horizon,model_info.filtered['current_distribution'],*model_info.filtered['transition_tensor'])
+    uncond_term = model_info.parameters["unconditional_term"]**2
     state_values = model_info.filtered['latent_states']
     prob_flat = prob_list.reshape(prob_list.shape[0], -1)
-    expected_states = prob_flat @ state_values
+    prod_state_values = state_values
+    expected_variance = uncond_term*(prob_flat @ prod_state_values)
     
     def weighted_quantile(values, probs, quantiles):
         """Compute weighted quantiles for a 1D distribution."""
@@ -244,9 +246,9 @@ def forecast(horizon:int, model_info: metadata,
         cumprobs = jnp.cumsum(probs)
         return jnp.interp(quantiles, cumprobs, values)
     
-    cis = vmap(lambda p: weighted_quantile(state_values, p, quantiles))(prob_flat)
+    cis = vmap(lambda p: weighted_quantile(uncond_term*prod_state_values, p, quantiles))(prob_flat)
     ci_lower, ci_upper = cis[:,0], cis[:,1]
-    return expected_states, ci_lower, ci_upper
+    return expected_variance, ci_lower, ci_upper
 
 def boostrap_forecast(self:metadata, horizon:int, num_simulation:int, seed: int = 0):
     seeds = jnp.arange(seed, seed + num_simulation)
