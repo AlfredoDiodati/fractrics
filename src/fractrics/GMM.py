@@ -1,8 +1,7 @@
 from jax import lax
 import jax.numpy as jnp
 import jax.scipy.stats as jss
-from jax.scipy.special import logsumexp
-from jax.flatten_util import ravel_pytree
+from jax.scipy.special import logsumexp, softmax
 from dataclasses import dataclass, replace, field
 
 @dataclass(frozen=True)
@@ -14,6 +13,12 @@ class metadata():
         'variances':  jnp.ones(1),
         'probabilities': jnp.full(0.5)
     })
+    optimization_info : dict = field(default_factory= lambda: {
+        'log likelihood': None,
+        'is_converged': None,
+        'n_iteration': None
+    })
+
     
 #TODO: generalize for distributions with different parameters
 #TODO: generalize to multivariate case
@@ -49,4 +54,49 @@ def _Mstep(data: jnp.ndarry, weights:jnp.ndarray):
     new_scale = jnp.sum(weights * diff2, axis=0)/wsum 
     
     return new_prob, new_scale, new_mean
+
+def _link(scale, prb):
+    """Ensures scale is positive and probabilities sum to one"""
+    scale = jnp.exp(scale)
+    prb = softmax(prb)
+    return scale, prb
+
+def fit(model: metadata, tol:float=1e-8, max_iter: int = 1000):
+    data = model.data
+    init_p = model.parameters["probabilities"]
+    init_mean = model.parameters["means"]
+    init_scale = model.parameters["means"]
     
+    def _step(carry):
+        p, mean, scale, oldlik, it = carry
+        scale, p = _link(scale, p)
+        w = _weights(data, p, mean, scale)
+        new_prob, new_scale, new_mean = _Mstep(data, w)
+        newlik = _Estep(data, w, new_scale, new_mean)
+        likratio = jnp.abs(newlik / oldlik - 1.0)
+        it = it + 1
+        return (new_prob, new_mean, new_scale, newlik, it), likratio
+    
+    def _stop(carry):
+        _, _, _, oldlik, it = carry
+        return jnp.logical_and(it < max_iter, jnp.isfinite(oldlik))
+
+    init_w = _weights(data, init_p, init_mean, init_scale)
+    init_lik = _Estep(data, init_w, init_scale, init_mean)
+    likratio0 = jnp.inf
+    it0 = 0
+    init_carry = (init_p, init_mean, init_scale, init_lik, likratio0, it0)
+    p, mean, scale, lik, _, it = lax.while_loop(_stop, _step, init_carry)
+    
+    return replace(model, 
+        parameters = {
+            'probabilities': p,
+            'means': mean,
+            'scale': scale
+        },
+        optimization_info = {
+        'log likelihood': lik,
+        'is_converged': False,
+        'n_iteration': it
+        }
+    )
