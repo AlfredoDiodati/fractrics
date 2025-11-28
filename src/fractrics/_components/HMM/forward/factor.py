@@ -2,11 +2,7 @@ import jax.numpy as jnp
 from jax.lax import scan
 from jax.nn import softmax
 from jax.scipy.special import logsumexp
-
-def joint_predictive(log_pi, log_A):
-    """Joint transition step in log form"""
-    return logsumexp(log_pi[:, None] + log_A, axis=0)
-
+    
 def make_factor_predictive_function(*transition_matrices)-> callable:
     """Returns a function that computes the predictive distribution for independent states."""
     
@@ -38,8 +34,7 @@ def update(distr_initial: jnp.ndarray,
     
     #NOTE: predictive_tensor needs to run in non-log space
     #TODO: manage the forward with less swithches between log and non log space
-    #TODO: create naive transition kernell and check with version is computationally more efficient f.e. use case
-    
+   
     def step(carry, log_data_likelihood_row):
         log_prior, nl_loss_likelihood = carry
         

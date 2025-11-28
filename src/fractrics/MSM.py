@@ -1,6 +1,6 @@
 from fractrics import nelder_mead
 from fractrics._components.HMM.base import hmm_metadata
-from fractrics._components.HMM.forward import pforecast, update
+from fractrics._components.HMM.forward.factor import pforecast, update
 from fractrics._components.HMM.data_likelihood import likelihood
 from fractrics._components.HMM.transition_tensor import poisson_arrivals
 from fractrics._components.HMM.initial_distribution import check_marg_prob_mass, multiplicative_cascade, factor_pmas
