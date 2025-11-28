@@ -12,6 +12,8 @@ import jax.numpy as jnp
 from jax.flatten_util import ravel_pytree
 from jax.nn import softplus, sigmoid
 
+# simulation test
+
 @dataclass(frozen=True)
 class metadata(hmm_metadata):
     num_latent : int = 2

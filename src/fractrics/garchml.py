@@ -5,6 +5,8 @@ from fractrics.solvers import nelder_mead
 from dataclasses import dataclass, replace, field
 from fractrics._components.core import ts_metadata
 
+#TODO: remove non-jax conditionals, simulation test
+
 @dataclass(frozen=True)
 class metadata(ts_metadata):
     """

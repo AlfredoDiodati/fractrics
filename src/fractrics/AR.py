@@ -7,6 +7,8 @@ from jax.flatten_util import ravel_pytree
 from dataclasses import dataclass, replace, field
 from fractrics._components.core import ts_metadata
 
+# complete (see below)
+
 @dataclass(frozen=True)
 class metadata(ts_metadata):
     """
@@ -71,11 +73,13 @@ if __name__ == '__main__' and __debug__:
     
     import numpy as np
     from fractrics.utilities import summary
-    noise = np.random.normal(0, 1, 100)
+    T = 1000
+    noise = np.random.normal(0, 1, T)
     coefficient = 0.5
-    x = np.cumsum(noise * coefficient ** np.arange(100))
+    x = np.cumsum(noise * (coefficient ** np.arange(T)))
     
     model = metadata(data=x)
     fitted = fit(model)
     summary(fitted)
-     
+    
+    #test?

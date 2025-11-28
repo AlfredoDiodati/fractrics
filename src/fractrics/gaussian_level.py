@@ -5,6 +5,8 @@ from jax.flatten_util import ravel_pytree
 from dataclasses import dataclass, replace, field
 from fractrics._components.core import ts_metadata
 
+# TODO: simulation test, same model with t-distr, mixtures, add forecast
+
 @dataclass(frozen=True)
 class metadata(ts_metadata):
     data: jnp.ndarray | None = None
