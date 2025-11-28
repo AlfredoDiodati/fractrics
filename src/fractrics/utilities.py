@@ -38,56 +38,6 @@ def plot_forecast(mean, ci_lower, ci_upper, title="Forecast with Confidence Inte
     plt.tight_layout()
     plt.show()
 
-
-def plot_simulation_batch(returns, vols, percentiles=(5, 95)):
-    
-    _, horizon = returns.shape
-    low_p, high_p = percentiles
-
-    vol_med = jnp.percentile(vols, 50, axis=0)
-    vol_low = jnp.percentile(vols, low_p, axis=0)
-    vol_high = jnp.percentile(vols, high_p, axis=0)
-
-    ret_med = jnp.percentile(returns, 50, axis=0)
-    ret_low = jnp.percentile(returns, low_p, axis=0)
-    ret_high = jnp.percentile(returns, high_p, axis=0)
-
-    vol_med = jax.device_get(vol_med)
-    vol_low = jax.device_get(vol_low)
-    vol_high = jax.device_get(vol_high)
-
-    ret_med = jax.device_get(ret_med)
-    ret_low = jax.device_get(ret_low)
-    ret_high = jax.device_get(ret_high)
-
-    vols = jax.device_get(vols)
-    returns = jax.device_get(returns)
-    sample_idx = jax.device_get(sample_idx)
-    x = jax.device_get(jnp.arange(horizon))
-
-    fig, (ax_v, ax_r) = plt.subplots(1, 2, figsize=(12, 4))
-
-    ax_v.fill_between(x, vol_low, vol_high, alpha=0.25)
-    ax_v.plot(x, vol_med, linewidth=2, label="median")
-    for i in sample_idx:
-        ax_v.plot(x, vols[i], linewidth=0.8, alpha=0.6)
-    ax_v.set_title("Volatility")
-    ax_v.set_xlabel("Time")
-    ax_v.set_ylabel("Volatility")
-    ax_v.grid(True)
-
-    ax_r.fill_between(x, ret_low, ret_high, alpha=0.25)
-    ax_r.plot(x, ret_med, linewidth=2, label="median")
-    for i in sample_idx:
-        ax_r.plot(x, returns[i], linewidth=0.8, alpha=0.6)
-    ax_r.set_title("Returns")
-    ax_r.set_xlabel("Time")
-    ax_r.set_ylabel("Return")
-    ax_r.grid(True)
-
-    fig.tight_layout()
-    plt.show()
-
 def plot_simulation_batch(returns_batch, title: str | None = None):
     """
     Plot cumulative-return paths and color them into `groups` by how far their final cumulative value is from the mean final value.
