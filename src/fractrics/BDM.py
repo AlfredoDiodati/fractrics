@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-import jax.random as random
 
 from jax.scipy.linalg import toeplitz
 from jax.flatten_util import ravel_pytree

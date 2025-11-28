@@ -69,7 +69,7 @@ def gpareto_tail(ts:jnp.ndarray, initial_guess: jnp.ndarray, location = 0.0) -> 
     
     result = nelder_mead.solver(deconstrained_initial_guess, nll)
     
-    fitted = deconstrain(result[0])
+    fitted = jnp.exp(result[0])
     return fitted, result[1], result[2], result[3]
 
 def lower_tail_dependence(x:jnp.ndarray, y:jnp.ndarray, alpha:float|None = None, k:int|None = None):
