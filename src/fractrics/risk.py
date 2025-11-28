@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax.scipy.stats as jss
 from jax import vmap
 
-from fractrics import nelder_mead
+from fractrics.solvers import nelder_mead
 
 def hill(ts: jnp.ndarray, order: jnp.ndarray | None = None) -> jnp.ndarray:
     """ Hill estimator using upper order statistics.

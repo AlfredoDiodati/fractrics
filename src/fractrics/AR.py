@@ -2,7 +2,7 @@ from jax import lax
 import jax.numpy as jnp
 from types import ModuleType
 import jax.scipy.stats as jss
-from fractrics import nelder_mead
+from fractrics.solvers import nelder_mead
 from jax.flatten_util import ravel_pytree
 from dataclasses import dataclass, replace, field
 from fractrics._components.core import ts_metadata

@@ -5,7 +5,7 @@ from jax.flatten_util import ravel_pytree
 from dataclasses import dataclass, field, replace
 
 from jax import hessian, jacrev
-from fractrics import nelder_mead
+from fractrics.solvers import nelder_mead
 from fractrics._components.core import ts_metadata
 
 @dataclass(frozen=True)

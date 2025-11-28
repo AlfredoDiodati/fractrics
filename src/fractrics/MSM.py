@@ -1,7 +1,7 @@
-from fractrics import nelder_mead
+from fractrics.solvers import nelder_mead
 from fractrics._components.HMM.base import hmm_metadata
-from fractrics._components.HMM.forward.factor import pforecast, update
 from fractrics._components.HMM.data_likelihood import likelihood
+from fractrics._components.HMM.forward.factor import pforecast, update
 from fractrics._components.HMM.transition_tensor import poisson_arrivals
 from fractrics._components.HMM.initial_distribution import check_marg_prob_mass, multiplicative_cascade, factor_pmas
 
@@ -137,7 +137,6 @@ def fit(self:metadata, max_iter:int):
         prms = constrain_map(param_dict)
         NLL, _ = nll_f(prms)
         return NLL
-    
 
     check_marg_prob_mass(marg_prob_mass)
     ergotic_dist = factor_pmas(marg_prob_mass, self.num_latent)

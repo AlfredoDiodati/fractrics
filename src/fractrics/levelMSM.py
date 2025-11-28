@@ -1,4 +1,4 @@
-from fractrics import nelder_mead
+from fractrics.solvers import nelder_mead
 from fractrics._components.HMM.base import hmm_metadata
 from fractrics._components.HMM.forward.factor import update
 from fractrics._components.HMM.data_likelihood import likelihood

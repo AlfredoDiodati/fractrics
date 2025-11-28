@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from fractrics import nelder_mead
+from fractrics.solvers import nelder_mead
 from fractrics._components.copula import rank_to_uniform
 
 def clayton_logpdf(u, v, theta, eps=1e-12):

@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax.scipy as jsp
 
 from jax import lax
-from fractrics import nelder_mead
+from fractrics.solvers import nelder_mead
 from fractrics._components.copula import rank_to_uniform
 
 def t_cdf(df, t):
