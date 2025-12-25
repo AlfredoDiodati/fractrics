@@ -171,7 +171,7 @@ Refer to:
     ├── levelMSM.py               # Level Markov Switching Multifractal Implementation
     ├── MSM.py                    # Markov Switching Multifractal Implementation
     ├── utilities.py              # contains summary and plot functions
-    ├── solvers                   # numerical solvers for maximum likeliihood
+    ├── solvers/                  # numerical solvers for maximum likeliihood
     ├── descriptive.py            # Explorative analysis statistics
     └── diagnostics.py            # Statistics to test performances of models
 
