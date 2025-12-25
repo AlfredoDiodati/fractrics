@@ -7,12 +7,15 @@
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Quick example](#quick-example)
-- [Project Structure](#project-structure)
-- [Planned updates](#planned-updates)
-- [References](#references)
-- [License](#license)
+- [fractrics](#fractrics)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Quick example](#quick-example)
+  - [MSM documentation](#msm-documentation)
+  - [Project Structure](#project-structure)
+  - [Planned updates](#planned-updates)
+  - [References](#references)
+  - [License](#license)
 
 ## Installation
 
@@ -165,14 +168,10 @@ Refer to:
 ├── notebooks                     # [example jupyter notebooks]
 └── src/fractrics                 # [main code repository]
     ├── _components/              # abstract classes and methods for time series
-    ├── AR.py                     # Flexible implementation of linear autoregressive models
     ├── levelMSM.py               # Level Markov Switching Multifractal Implementation
     ├── MSM.py                    # Markov Switching Multifractal Implementation
-    ├── garchml.py                # In mean-level GARCH Implementation
-    ├── gaussian_level.py         # Gaussian Level Implementation
     ├── utilities.py              # contains summary and plot functions
-    ├── nelder_mead.py            # Nelder-Mead solver implementation
-    ├── unscent_KF.py             # Unscent Kalman Filter implementation
+    ├── solvers                   # numerical solvers for maximum likeliihood
     ├── descriptive.py            # Explorative analysis statistics
     └── diagnostics.py            # Statistics to test performances of models
 
