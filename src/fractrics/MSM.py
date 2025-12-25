@@ -2,7 +2,7 @@ from fractrics.solvers import nelder_mead, momentum_gd
 from fractrics._components.HMM.base import hmm_metadata
 from fractrics._components.HMM.forward.factor import pforecast, update
 from fractrics._components.HMM.transition_tensor import poisson_arrivals
-from fractrics._components.HMM.data_likelihood import likelihood, log_likelihood
+from fractrics._components.HMM.data_likelihood import log_likelihood
 from fractrics._components.HMM.initial_distribution import check_marg_prob_mass, multiplicative_cascade, factor_pmas
 
 from dataclasses import dataclass, field, replace
@@ -68,7 +68,7 @@ class metadata(hmm_metadata):
     def _MAP_disjoined(self) -> jnp.ndarray:
         return self.filtered['latent_states'][jnp.argmax(self.filtered['distribution_list'], axis=1)]
     
-def filter(self:metadata) -> None:
+def filter(self:metadata) -> metadata:
     uncond_term = self.parameters['unconditional_term']
     arrival_gdistance = self.parameters['arrival_gdistance']
     hf_arrival = self.parameters['hf_arrival']
@@ -193,42 +193,82 @@ def fit(self:metadata, max_iter:int, solver:str='nelder-mead'):
     )
     return fit_metadata
 
-def simulation(n_simulations:int,
-        model_info:metadata,
-        seed:int=0)->tuple[jnp.ndarray, jnp.ndarray]:
-    
+def simulation(n_simulations: int, model_info: metadata, seed: int = 0) -> tuple[jnp.ndarray, jnp.ndarray]:
     key = random.PRNGKey(seed)
     key, key_init = random.split(key)
-    marginal_support = jnp.array([2 - model_info.parameters['marginal_value'], model_info.parameters['marginal_value']])
-    marg_prob_mass = jnp.full(2, 0.5)
-    initial_states = random.choice(
-        key_init, marginal_support,
-        (model_info.num_latent,), 
-        p=marg_prob_mass)
-    
-    initial_random_keys = random.split(key, n_simulations * 3).reshape(n_simulations, 3, 2)
-    pa = model_info._poisson_arrivals
-    
-    def _step(states, key_triple):
 
+    m = model_info.parameters["marginal_value"]
+    marginal_support = jnp.array([2.0 - m, m])
+    marg_prob_mass = jnp.full(2, 0.5)
+
+    initial_states = random.choice(
+        key_init,
+        marginal_support,
+        (model_info.num_latent,),
+        p=marg_prob_mass
+    )
+
+    keys = random.split(key, n_simulations * 3).reshape(n_simulations, 3, 2)
+    pa = model_info._poisson_arrivals  # shape (K,)
+
+    bernoulli_v = vmap(lambda k, p: random.bernoulli(k, p))
+    choice_v = vmap(lambda k: random.choice(k, marginal_support, (), p=marg_prob_mass))
+
+    def _step(states, key_triple):
         key_arrival, key_switch, key_noise = key_triple
-        switch_mask = random.bernoulli(key_arrival, p=pa)
-        
-        new_vals = random.choice(
-            key_switch, marginal_support,
-            (model_info.num_latent,), 
-            p=marg_prob_mass
-            )
-        
+
+        key_arrivals = random.split(key_arrival, model_info.num_latent)
+        switch_mask = bernoulli_v(key_arrivals, pa)
+
+        key_switches = random.split(key_switch, model_info.num_latent)
+        new_vals = choice_v(key_switches)
+
         states = jnp.where(switch_mask, new_vals, states)
-        vol = model_info.parameters['unconditional_term'] * jnp.sqrt(jnp.prod(states))
-        r = vol*random.normal(key_noise)
-        
+
+        vol = model_info.parameters["unconditional_term"] * jnp.sqrt(jnp.prod(states))
+        r = vol * random.normal(key_noise)
+
         return states, (vol, r)
-    
-    _, (volatility_sim, return_sim) = scan(_step,initial_states, initial_random_keys)
-    
+
+    _, (volatility_sim, return_sim) = scan(_step, initial_states, keys)
     return return_sim, volatility_sim
+
+# def simulation(n_simulations:int,
+#         model_info:metadata,
+#         seed:int=0)->tuple[jnp.ndarray, jnp.ndarray]:
+    
+#     key = random.PRNGKey(seed)
+#     key, key_init = random.split(key)
+#     marginal_support = jnp.array([2 - model_info.parameters['marginal_value'], model_info.parameters['marginal_value']])
+#     marg_prob_mass = jnp.full(2, 0.5)
+#     initial_states = random.choice(
+#         key_init, marginal_support,
+#         (model_info.num_latent,), 
+#         p=marg_prob_mass)
+    
+#     initial_random_keys = random.split(key, n_simulations * 3).reshape(n_simulations, 3, 2)
+#     pa = model_info._poisson_arrivals
+    
+#     def _step(states, key_triple):
+
+#         key_arrival, key_switch, key_noise = key_triple
+#         switch_mask = random.bernoulli(key_arrival, p=pa)
+        
+#         new_vals = random.choice(
+#             key_switch, marginal_support,
+#             (model_info.num_latent,), 
+#             p=marg_prob_mass
+#             )
+        
+#         states = jnp.where(switch_mask, new_vals, states)
+#         vol = model_info.parameters['unconditional_term'] * jnp.sqrt(jnp.prod(states))
+#         r = vol*random.normal(key_noise)
+        
+#         return states, (vol, r)
+    
+#     _, (volatility_sim, return_sim) = scan(_step,initial_states, initial_random_keys)
+    
+#     return return_sim, volatility_sim
 
 def variance_forecast(horizon:int, model_info: metadata, 
     quantiles: tuple[float, float]) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:

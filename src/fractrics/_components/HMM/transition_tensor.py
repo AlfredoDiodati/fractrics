@@ -13,6 +13,14 @@ def poisson_arrivals(marg_prob_mass:jnp.ndarray, arrival_gdistance:float, hf_arr
     The poisson arrivals are geometrically spaced.
     From Markov Switching Multifractal model. 
     """
-    arrivals = 1 - (1 - hf_arrival) ** (1 / (arrival_gdistance ** (jnp.arange(num_latent, 0, -1) - 1)))
-    len_pm = len(marg_prob_mass)
-    return tuple((1-g)*jnp.eye(len_pm) + g*jnp.tile(marg_prob_mass, (len_pm, 1)) for g in arrivals)
+    k = jnp.arange(num_latent, 0, -1) - 1
+    arrivals = 1 - (1 - hf_arrival) ** (1 / (arrival_gdistance ** k))
+
+    len_pm = marg_prob_mass.shape[0]
+
+    A = (
+        (1.0 - arrivals)[:, None, None] * jnp.eye(len_pm)[None, :, :]
+        + arrivals[:, None, None] * marg_prob_mass[None, None, :]
+    )
+
+    return tuple(A)
