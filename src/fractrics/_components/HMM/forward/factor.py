@@ -25,12 +25,10 @@ def update(distr_initial: jnp.ndarray,
     
     predictive_function = make_factor_predictive_function(*transition_matrices)
     
-    small_constant = 1e-12
-    
     dims = tuple(A.shape[0] for A in transition_matrices)
-    log_tensor_initial_distribution = jnp.log(distr_initial.reshape(*dims) + small_constant)
+    log_tensor_initial_distribution = jnp.log(distr_initial.reshape(*dims)) #eps
     
-    log_data_likelihood_tensor = jnp.log(data_likelihood.reshape((data_likelihood.shape[0],) + dims) + small_constant)
+    log_data_likelihood_tensor = data_likelihood.reshape((data_likelihood.shape[0],) + dims)
     
     #NOTE: predictive_tensor needs to run in non-log space
     #TODO: manage the forward with less swithches between log and non log space
@@ -38,13 +36,17 @@ def update(distr_initial: jnp.ndarray,
     def step(carry, log_data_likelihood_row):
         log_prior, nl_loss_likelihood = carry
         
-        log_predictive_tensor = jnp.log(predictive_function(softmax(log_prior)) + small_constant)
+        Pi_pred = predictive_function(softmax(log_prior))
+        log_Pi_pred = jnp.log(Pi_pred)
+
+        log_nonnormalized = log_Pi_pred + log_data_likelihood_row
+
+        ell_t = logsumexp(log_nonnormalized)
+        log_Pi_t = log_nonnormalized - ell_t
+        nll_t = -ell_t
+
         
-        log_nonnormalized_posterior = log_predictive_tensor + log_data_likelihood_row
-        log_loss_likelihood = -logsumexp(log_nonnormalized_posterior)
-        log_normalized_posterior = log_nonnormalized_posterior + log_loss_likelihood
-        
-        return (log_normalized_posterior, nl_loss_likelihood + log_loss_likelihood), (log_normalized_posterior, log_loss_likelihood)
+        return (log_Pi_t, nl_loss_likelihood + nll_t), (log_Pi_t, nll_t)
     
     carry_initial = (log_tensor_initial_distribution, 0.0)
     

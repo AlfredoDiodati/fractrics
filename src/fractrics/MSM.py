@@ -1,8 +1,8 @@
 from fractrics.solvers import nelder_mead, momentum_gd
 from fractrics._components.HMM.base import hmm_metadata
-from fractrics._components.HMM.data_likelihood import likelihood
 from fractrics._components.HMM.forward.factor import pforecast, update
 from fractrics._components.HMM.transition_tensor import poisson_arrivals
+from fractrics._components.HMM.data_likelihood import likelihood, log_likelihood
 from fractrics._components.HMM.initial_distribution import check_marg_prob_mass, multiplicative_cascade, factor_pmas
 
 from dataclasses import dataclass, field, replace
@@ -77,7 +77,7 @@ def filter(self:metadata) -> None:
     marg_prob_mass = jnp.full(2, 0.5)
     
     latent_states = multiplicative_cascade(num_latent=self.num_latent, uncond_term=uncond_term, marg_support=marg_support)
-    data_likelihood = likelihood(self.data_log_change, states_values=latent_states)
+    data_likelihood = log_likelihood(self.data_log_change, states_values=latent_states)
     transition_tensor = poisson_arrivals(marg_prob_mass=marg_prob_mass, arrival_gdistance=arrival_gdistance, hf_arrival=hf_arrival, num_latent=self.num_latent)
     ergotic_dist = factor_pmas(marg_prob_mass, self.num_latent)
     NLL, current_distribution, distribution_list, nll_list = update(ergotic_dist, data_likelihood, transition_tensor)
@@ -106,7 +106,7 @@ def fit(self:metadata, max_iter:int, solver:str='nelder-mead'):
         uncond_term=softplus(params_dict['unconditional_term'])
         arrival_gdistance=softplus(params_dict['arrival_gdistance']) + 1
         hf_arrival=sigmoid(params_dict['hf_arrival'])
-        marginal_value = softplus(params_dict['marginal_value'])
+        marginal_value = 1.0 + sigmoid(params_dict['marginal_value'])
         params_array = jnp.array([uncond_term, arrival_gdistance, hf_arrival, marginal_value])
         return params_array
     
@@ -121,7 +121,7 @@ def fit(self:metadata, max_iter:int, solver:str='nelder-mead'):
             'unconditional_term': inv_softplus(params_dict['unconditional_term']),
             'arrival_gdistance': inv_softplus(params_dict['arrival_gdistance']- 1),
             'hf_arrival': inv_sigmoid(params_dict['hf_arrival']),
-            'marginal_value': inv_softplus(params_dict['marginal_value'])
+            'marginal_value': inv_sigmoid(params_dict['marginal_value'] - 1.0)
             }
     
     unconstr_params = unconstrain_map(self.parameters)
@@ -131,7 +131,7 @@ def fit(self:metadata, max_iter:int, solver:str='nelder-mead'):
     def nll_f(prms:jnp.ndarray):
         marg_support = jnp.array([prms[3], 2 - prms[3]])
         latent_states = multiplicative_cascade(num_latent=self.num_latent, uncond_term=prms[0], marg_support=marg_support)
-        data_likelihood = likelihood(self.data_log_change, states_values=latent_states)
+        data_likelihood = log_likelihood(self.data_log_change, states_values=latent_states)
         transition_tensor = poisson_arrivals(marg_prob_mass=marg_prob_mass, arrival_gdistance=prms[1],
             hf_arrival=prms[2], num_latent=self.num_latent)
         NLL, _, _, nll_list = update(ergotic_dist, data_likelihood, transition_tensor)
@@ -231,7 +231,7 @@ def simulation(n_simulations:int,
     return return_sim, volatility_sim
 
 def variance_forecast(horizon:int, model_info: metadata, 
-        quantiles: tuple[float, float]) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    quantiles: tuple[float, float]) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     quantiles = jnp.array(quantiles)
     prob_list = pforecast(horizon,model_info.filtered['current_distribution'],*model_info.filtered['transition_tensor'])
     uncond_term = model_info.parameters["unconditional_term"]**2
