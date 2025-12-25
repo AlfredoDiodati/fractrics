@@ -84,7 +84,8 @@ def filter(self:metadata) -> None:
     
     return replace(self, 
         optimization_info  =  {
-        'negative_log_likelihood': NLL
+        'negative_log_likelihood': NLL,
+        'nll_list': nll_list
         },
         filtered = {
         'current_distribution': current_distribution,

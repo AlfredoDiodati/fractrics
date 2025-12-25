@@ -12,8 +12,6 @@ import jax.numpy as jnp
 from jax.flatten_util import ravel_pytree
 from jax.nn import softplus, sigmoid
 
-# simulation test
-
 @dataclass(frozen=True)
 class metadata(hmm_metadata):
     num_latent : int = 2
@@ -97,7 +95,8 @@ def filter(self:metadata) -> None:
     NLL, current_distribution, distribution_list, nll_list = update(ergotic_dist, data_likelihood, transition_tensor)
     
     return replace(self, 
-        optimization_info = {'negative_log_likelihood': NLL/(self.data[:-1]**variance_elasticity)},
+        optimization_info = {'negative_log_likelihood': NLL/(self.data[:-1]**variance_elasticity),
+        'nll_list': nll_list},
         filtered = {
         'current_distribution': current_distribution,
         'distribution_list': distribution_list,
