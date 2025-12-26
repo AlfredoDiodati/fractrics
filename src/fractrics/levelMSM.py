@@ -1,7 +1,7 @@
 from fractrics.solvers import nelder_mead
 from fractrics._components.HMM.base import hmm_metadata
 from fractrics._components.HMM.forward.factor import update
-from fractrics._components.HMM.data_likelihood import likelihood
+from fractrics._components.HMM.data_likelihood import log_likelihood
 from fractrics._components.HMM.transition_tensor import poisson_arrivals
 from fractrics._components.HMM.initial_distribution import check_marg_prob_mass, multiplicative_cascade, factor_pmas
 
@@ -89,7 +89,7 @@ def filter(self:metadata) -> None:
     marg_prob_mass = jnp.full(2, 0.5)
     
     latent_states = multiplicative_cascade(num_latent=self.num_latent, uncond_term=uncond_term, marg_support=marg_support)
-    data_likelihood = likelihood(mult_comp, states_values=latent_states)
+    data_likelihood = log_likelihood(mult_comp, states_values=latent_states)
     transition_tensor = poisson_arrivals(marg_prob_mass=marg_prob_mass, arrival_gdistance=arrival_gdistance, hf_arrival=hf_arrival, num_latent=self.num_latent)
     ergotic_dist = factor_pmas(marg_prob_mass, self.num_latent)
     NLL, current_distribution, distribution_list, nll_list = update(ergotic_dist, data_likelihood, transition_tensor)
@@ -113,7 +113,7 @@ def fit(self:metadata, max_iter:int):
         uncond_term=softplus(params_dict['unconditional_term'])
         arrival_gdistance=softplus(params_dict['arrival_gdistance']) + 1
         hf_arrival=sigmoid(params_dict['hf_arrival'])
-        marginal_value = softplus(params_dict['marginal_value'])
+        marginal_value = 1.0 + sigmoid(params_dict['marginal_value'])
         params_array = jnp.array([uncond_term, arrival_gdistance, 
             hf_arrival, marginal_value, variance_elasticity, 
             param_dict['intercept'], param_dict['ar_coefficient']])
@@ -133,7 +133,7 @@ def fit(self:metadata, max_iter:int):
             'unconditional_term': inv_softplus(params_dict['unconditional_term']),
             'arrival_gdistance': inv_softplus(params_dict['arrival_gdistance']- 1),
             'hf_arrival': inv_sigmoid(params_dict['hf_arrival']),
-            'marginal_value': inv_softplus(params_dict['marginal_value'])
+            'marginal_value': inv_sigmoid(params_dict['marginal_value'] - 1.0)
             }
     
     unconstr_params = unconstrain_map(self.parameters)
@@ -145,7 +145,7 @@ def fit(self:metadata, max_iter:int):
         frctl_component = multifractal_component(self)
         marg_support = jnp.array([prms[3], 2 - prms[3]])
         latent_states = multiplicative_cascade(num_latent=self.num_latent, uncond_term=prms[0], marg_support=marg_support)
-        data_likelihood = likelihood(frctl_component, states_values=latent_states)
+        data_likelihood = log_likelihood(frctl_component, states_values=latent_states)
         transition_tensor = poisson_arrivals(marg_prob_mass=marg_prob_mass, arrival_gdistance=prms[1],
             hf_arrival=prms[2], num_latent=self.num_latent)
         NLL, _, _, nll_list = update(ergotic_dist, data_likelihood, transition_tensor)
@@ -165,19 +165,47 @@ def fit(self:metadata, max_iter:int):
     
     param_dict = ravel_f(params_optimized)
     prms = constrain_map(param_dict)
-    nll_hessian,_ = hessian(nll_f, has_aux=True)(prms)
     
-    covariance = jnp.linalg.inv(nll_hessian)
-    standard_errors = jnp.sqrt(jnp.diag(covariance))
+    H_total = hessian(objective_fun)(params_optimized)
     
-    def score_fun(prms:jnp.ndarray):
-        _, nll_list = nll_f(prms)
+    def constrain_map_se(params_dict):
+        eps = 1e-6
+        uncond_term = softplus(params_dict['unconditional_term'])
+        arrival_gdistance = softplus(params_dict['arrival_gdistance']) + 1.0
+        hf_arrival = jnp.clip(sigmoid(params_dict['hf_arrival']), eps, 1 - eps)
+        marginal_value = 1.0 + jnp.clip(sigmoid(params_dict['marginal_value']), eps, 1 - eps)
+        return jnp.array([uncond_term, arrival_gdistance, hf_arrival, marginal_value])
+
+    def score_eta(params):
+        _, nll_list = nll_f(constrain_map(ravel_f(params)))
         return nll_list
     
-    score_matrix = jacrev(score_fun)(prms)
-    B = score_matrix.T @ score_matrix
-    robust_covariance = covariance @ B @ covariance.T
-    robust_se = jnp.sqrt(jnp.diag(robust_covariance))
+    G = jacrev(lambda x: constrain_map_se(ravel_f(x)))(params_optimized)
+    S = jacrev(score_eta)(params_optimized)
+
+    T = self.data_log_change.shape[0]
+    A = (S.T @ S) / T
+    cov_eta = jnp.linalg.inv(A) / T
+    cov_theta = G @ cov_eta @ G.T
+    standard_errors = jnp.sqrt(jnp.diag(cov_theta))
+    
+    def newey_west(S, L):
+        T = S.shape[0]
+        B = (S.T @ S) / T
+        for l in range(1, L + 1):
+            w = 1.0 - l / (L + 1.0)
+            Gamma = (S[l:].T @ S[:-l]) / T
+            B = B + w * (Gamma + Gamma.T)
+        return B
+    
+
+    L = int(jnp.floor(4 * (T / 100.0) ** (2 / 9)))
+    B_eta = newey_west(S, L)
+
+    H_bar = H_total / T
+    V_eta = jnp.linalg.inv(H_bar) @ B_eta @ jnp.linalg.inv(H_bar) / T
+    V_theta_robust = G @ V_eta @ G.T
+    robust_se = jnp.sqrt(jnp.diag(V_theta_robust))
     
     fit_metadata = replace(self,
         
