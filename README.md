@@ -181,15 +181,12 @@ Refer to:
 
 - `components/_HMM/base.py`:
     - implementing viterbi and backwards algorithms
-    - generalize components of the forward algorithms that apply to other hidden markov models
-- `MSM`:
-    - create plot functions.
-        - visualize states
-        - visualize learning path
-    - implement model selection metrics
-    - Allow for creating simulations without initializing the model with a time series.
-- `diagnostics.py`: adding other common metrics.
-- re-implementing the functions in `_components/_pending_refactor`:
+
+    - implementation of MSM and level_MSM analytical gradients and hessian, test them in gradient-based solvers against synthetic gradients
+
+    - multivariate MSM
+  
+    - multifractal asset pricing
 
 ## References
 
