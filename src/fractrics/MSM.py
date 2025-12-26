@@ -150,20 +150,48 @@ def fit(self:metadata, max_iter:int, solver:str='nelder-mead'):
     params_optimized, nll, is_converged, num_iterations = method.solver(initial_guess=param_array, f=objective_fun, max_iter=max_iter)
     param_dict = ravel_f(params_optimized)
     prms = constrain_map(param_dict)
-    nll_hessian,_ = hessian(nll_f, has_aux=True)(prms)
+
+    H_total = hessian(objective_fun)(params_optimized)
     
-    covariance = jnp.linalg.inv(nll_hessian)
-    standard_errors = jnp.sqrt(jnp.diag(covariance))
-    
-    def score_fun(prms:jnp.ndarray):
-        _, nll_list = nll_f(prms)
+    def constrain_map_se(params_dict):
+        eps = 1e-6
+        uncond_term = softplus(params_dict['unconditional_term'])
+        arrival_gdistance = softplus(params_dict['arrival_gdistance']) + 1.0
+        hf_arrival = jnp.clip(sigmoid(params_dict['hf_arrival']), eps, 1 - eps)
+        marginal_value = 1.0 + jnp.clip(sigmoid(params_dict['marginal_value']), eps, 1 - eps)
+        return jnp.array([uncond_term, arrival_gdistance, hf_arrival, marginal_value])
+
+    def score_eta(params):
+        _, nll_list = nll_f(constrain_map(ravel_f(params)))
         return nll_list
     
-    score_matrix = jacrev(score_fun)(prms)
-    B = score_matrix.T @ score_matrix
-    robust_covariance = covariance @ B @ covariance.T
-    robust_se = jnp.sqrt(jnp.diag(robust_covariance))
+    G = jacrev(lambda x: constrain_map_se(ravel_f(x)))(params_optimized)
+    S = jacrev(score_eta)(params_optimized)
+
+    T = self.data_log_change.shape[0]
+    A = (S.T @ S) / T
+    cov_eta = jnp.linalg.inv(A) / T
+    cov_theta = G @ cov_eta @ G.T
+    standard_errors = jnp.sqrt(jnp.diag(cov_theta))
     
+    def newey_west(S, L):
+        T = S.shape[0]
+        B = (S.T @ S) / T
+        for l in range(1, L + 1):
+            w = 1.0 - l / (L + 1.0)
+            Gamma = (S[l:].T @ S[:-l]) / T
+            B = B + w * (Gamma + Gamma.T)
+        return B
+    
+
+    L = int(jnp.floor(4 * (T / 100.0) ** (2 / 9)))
+    B_eta = newey_west(S, L)
+
+    H_bar = H_total / T
+    V_eta = jnp.linalg.inv(H_bar) @ B_eta @ jnp.linalg.inv(H_bar) / T
+    V_theta_robust = G @ V_eta @ G.T
+    robust_se = jnp.sqrt(jnp.diag(V_theta_robust))
+
     fit_metadata = replace(self,
         
         parameters = {
@@ -209,7 +237,7 @@ def simulation(n_simulations: int, model_info: metadata, seed: int = 0) -> tuple
     )
 
     keys = random.split(key, n_simulations * 3).reshape(n_simulations, 3, 2)
-    pa = model_info._poisson_arrivals  # shape (K,)
+    pa = model_info._poisson_arrivals
 
     bernoulli_v = vmap(lambda k, p: random.bernoulli(k, p))
     choice_v = vmap(lambda k: random.choice(k, marginal_support, (), p=marg_prob_mass))
@@ -232,43 +260,6 @@ def simulation(n_simulations: int, model_info: metadata, seed: int = 0) -> tuple
 
     _, (volatility_sim, return_sim) = scan(_step, initial_states, keys)
     return return_sim, volatility_sim
-
-# def simulation(n_simulations:int,
-#         model_info:metadata,
-#         seed:int=0)->tuple[jnp.ndarray, jnp.ndarray]:
-    
-#     key = random.PRNGKey(seed)
-#     key, key_init = random.split(key)
-#     marginal_support = jnp.array([2 - model_info.parameters['marginal_value'], model_info.parameters['marginal_value']])
-#     marg_prob_mass = jnp.full(2, 0.5)
-#     initial_states = random.choice(
-#         key_init, marginal_support,
-#         (model_info.num_latent,), 
-#         p=marg_prob_mass)
-    
-#     initial_random_keys = random.split(key, n_simulations * 3).reshape(n_simulations, 3, 2)
-#     pa = model_info._poisson_arrivals
-    
-#     def _step(states, key_triple):
-
-#         key_arrival, key_switch, key_noise = key_triple
-#         switch_mask = random.bernoulli(key_arrival, p=pa)
-        
-#         new_vals = random.choice(
-#             key_switch, marginal_support,
-#             (model_info.num_latent,), 
-#             p=marg_prob_mass
-#             )
-        
-#         states = jnp.where(switch_mask, new_vals, states)
-#         vol = model_info.parameters['unconditional_term'] * jnp.sqrt(jnp.prod(states))
-#         r = vol*random.normal(key_noise)
-        
-#         return states, (vol, r)
-    
-#     _, (volatility_sim, return_sim) = scan(_step,initial_states, initial_random_keys)
-    
-#     return return_sim, volatility_sim
 
 def variance_forecast(horizon:int, model_info: metadata, 
     quantiles: tuple[float, float]) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
