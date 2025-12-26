@@ -6,9 +6,11 @@ from fractrics._components.HMM.transition_tensor import poisson_arrivals
 from fractrics._components.HMM.initial_distribution import check_marg_prob_mass, multiplicative_cascade, factor_pmas
 
 from dataclasses import dataclass, field, replace
-from jax import hessian, jacrev
+from jax.lax import scan
+from jax import hessian, jacrev, vmap
 
 import jax.numpy as jnp
+import jax.random as random
 from jax.flatten_util import ravel_pytree
 from jax.nn import softplus, sigmoid
 
@@ -244,3 +246,60 @@ def fit(self:metadata, max_iter:int):
         }
     )
     return fit_metadata
+
+def simulation(n_simulations: int, model_info: metadata, seed: int = 0) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    key = random.PRNGKey(seed)
+    key, key_init = random.split(key)
+
+    m = model_info.parameters["marginal_value"]
+    marginal_support = jnp.array([2.0 - m, m])
+    marg_prob_mass = jnp.full(2, 0.5)
+
+    latent_states = random.choice(
+        key_init,
+        marginal_support,
+        (model_info.num_latent,),
+        p=marg_prob_mass
+    )
+
+    keys = random.split(key, n_simulations * 3).reshape(n_simulations, 3, 2)
+    poisson_arrivals = model_info._poisson_arrivals
+
+    bernoulli_v = vmap(lambda k, p: random.bernoulli(k, p))
+    choice_v = vmap(lambda k: random.choice(k, marginal_support, (), p=marg_prob_mass))
+
+    intercept = model_info.parameters["intercept"]
+    ar_coefficient = model_info.parameters["ar_coefficient"]
+    variance_elasticity = model_info.parameters["variance_elasticity"]
+    unconditional_term = model_info.parameters["unconditional_term"]
+
+    initial_level = model_info.data[0]
+
+    def _step(carry, key_triple):
+        previous_level, states = carry
+        key_arrival, key_switch, key_noise = key_triple
+
+        arrival_keys = random.split(key_arrival, model_info.num_latent)
+        switch_mask = bernoulli_v(arrival_keys, poisson_arrivals)
+
+        switch_keys = random.split(key_switch, model_info.num_latent)
+        new_states = choice_v(switch_keys)
+
+        states = jnp.where(switch_mask, new_states, states)
+
+        msm_volatility = unconditional_term * jnp.sqrt(jnp.prod(states))
+        innovation = msm_volatility * random.normal(key_noise)
+
+        level_scale = previous_level ** variance_elasticity
+        increment = intercept + ar_coefficient * previous_level + level_scale * innovation
+        current_level = previous_level + increment
+
+        return (current_level, states), (current_level, msm_volatility, increment)
+
+    (_, _), (level_sim, volatility_sim, return_sim) = scan(
+        _step,
+        (initial_level, latent_states),
+        keys
+    )
+
+    return return_sim, volatility_sim, level_sim
