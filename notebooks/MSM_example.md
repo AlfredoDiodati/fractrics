@@ -1,29 +1,4 @@
-# fractrics
-
-[![PyPI - Version](https://img.shields.io/pypi/v/fractrics.svg)](https://pypi.org/project/fractrics)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fractrics.svg)](https://pypi.org/project/fractrics)
-
------
-
-## Table of Contents
-
-- [fractrics](#fractrics)
-  - [Table of Contents](#table-of-contents)
-  - [Installation](#installation)
-  - [Quick example](#quick-example)
-  - [MSM documentation](#msm-documentation)
-  - [Project Structure](#project-structure)
-  - [Planned updates](#planned-updates)
-  - [References](#references)
-  - [License](#license)
-
-## Installation
-
-```console
-pip install fractrics
-```
-
-## Quick example
+# Example usage
 
 The main tool in fractrics is the MSM class, an implementation of the univariate [Markov Switching Multifractal Model](https://en.wikipedia.org/wiki/Markov_switching_multifractal). The logaritmic difference between observations is modeled as the noise-adjusted square root of the product of a chosen number of latent volatility components, each following the dynamics of discrete first order markov chains, whose transition depends on geometrically-spaced Poisson arrivals, and an unconditional term, effectively being the unconditional volatility.
 
@@ -155,62 +130,13 @@ plot_simulation_batch(return_f)
 
     
 ![png](plots/MSM_example_11_0.png)
+    
 
-##  MSM documentation
 
-Refer to:
-- [Quick example](../../../README.md#quick-example) for using the MSM class.
 
-- [Transition simulation](../../../notebooks/transition_simulation.ipynb) for an explanation of the optimized factor transition.
 
-## Project Structure
-```
-.
-├── notebooks                     # [example jupyter notebooks]
-└── src/fractrics                 # [main code repository]
-    ├── _components/              # abstract classes and methods for time series
-    ├── levelMSM.py               # Level Markov Switching Multifractal Implementation
-    ├── MSM.py                    # Markov Switching Multifractal Implementation
-    ├── utilities.py              # contains summary and plot functions
-    ├── solvers/                  # numerical solvers for maximum likeliihood
-    ├── descriptive.py            # Explorative analysis statistics
-    └── diagnostics.py            # Statistics to test performances of models
 
-```
-## Planned updates
+    (<Figure size 1000x600 with 1 Axes>,
+     <Axes: title={'center': 'Simulated Return Forecast'}, xlabel='Time Horizon', ylabel='Returns'>)
 
-- `components/_HMM/base.py`:
-    - implementing viterbi and backwards algorithms
-    - generalize components of the forward algorithms that apply to other hidden markov models
-- `MSM`:
-    - create plot functions.
-        - visualize states
-        - visualize learning path
-    - implement model selection metrics
-    - Allow for creating simulations without initializing the model with a time series.
-- `diagnostics.py`: adding other common metrics.
-- re-implementing the functions in `_components/_pending_refactor`:
 
-## References
-
-- Calvet, L.E. and Fisher, A.J. (2004). How to Forecast Long-Run Volatility: Regime Switching and the Estimation of Multifractal Processes. Journal of Financial Econometrics, 2(1).
-
-- Calvet, L.E. and Fisher, A.J. (2008). Multifractal Volatility. Theory, Forecasting, and Pricing. Academic Press.
-
-- Calvet, L.E., Fisher, A.J. and Thompson, S.B. (2004). Volatility Comovement: A Multifrequency Approach. SSRN Electronic Journal. doi:https://doi.org/10.2139/ssrn.582541.
-
-- Ghahramani, Z. and Jordan, M.I. (1997). Factorial Hidden Markov Models. Machine Learning, 29(2/3), pp.245–273. doi:https://doi.org/10.1023/a:1007425814087.
-
-- Lux, T. (2008). The Markov-Switching Multifractal Model of Asset Returns. Journal of Business & Economic Statistics, 26(2), pp.194–210. doi:https://doi.org/10.1198/073500107000000403.
-
-- Lux, T. (2020). Inference for Nonlinear State Space Models: A Comparison of Different Methods applied to Markov-Switching Multifractal Models. Econometrics and Statistics. doi:https://doi.org/10.1016/j.ecosta.2020.03.001.
-
-- Lux, T., Morales-Arias, L. and Sattarhoff, C. (2011). A Markov-switching multifractal approach to forecasting realized volatility. [online] Kiel Working Papers. Available at: https://ideas.repec.org/p/zbw/ifwkwp/1737.html [Accessed 30 May 2025].
-
-- Murphy, K.P. (2012). Machine learning : a probabilistic perspective. Cambridge (Ma): Mit Press.
-
-- Rypdal, M. and Løvsletten, O. (2011). Multifractal modeling of short-term interest rates. arXiv (Cornell University).
-
-## License
-
-`fractrics` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
