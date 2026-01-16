@@ -13,7 +13,7 @@ import jax.numpy as jnp
 import jax.random as random
 from jax.flatten_util import ravel_pytree
 from jax.nn import softplus, sigmoid
-#TODO: make a filter function that recovers the current states, MAP, Viterbi, ...
+#TODO: make a filter function that recovers the current states, Viterbi, ...
 
 @dataclass(frozen=True)
 class metadata(hmm_metadata):
@@ -62,7 +62,7 @@ class metadata(hmm_metadata):
     def _poisson_arrivals(self) -> jnp.ndarray:
         hf_arrival = self.parameters['hf_arrival']
         arrival_gdistance = self.parameters['arrival_gdistance']
-        return 1 - (1 - hf_arrival) ** (1 / (arrival_gdistance ** (jnp.arange(self.num_latent, 0, -1) - 1)))
+        return 1 - (1 - hf_arrival) ** (1 / (arrival_gdistance ** jnp.arange(self.num_latent, 0, -1)))
     
     @property
     def _MAP_disjoined(self) -> jnp.ndarray:

@@ -70,7 +70,7 @@ class metadata(hmm_metadata):
     def _poisson_arrivals(self) -> jnp.ndarray:
         hf_arrival = self.parameters['hf_arrival']
         arrival_gdistance = self.parameters['arrival_gdistance']
-        return 1 - (1 - hf_arrival) ** (1 / (arrival_gdistance ** (jnp.arange(self.num_latent, 0, -1) - 1)))
+        return 1 - (1 - hf_arrival) ** (1 / (arrival_gdistance ** jnp.arange(self.num_latent, 0, -1)))
     
     @property
     def _MAP_disjoined(self) -> jnp.ndarray:
